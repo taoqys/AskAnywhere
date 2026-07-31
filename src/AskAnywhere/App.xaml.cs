@@ -14,20 +14,21 @@ public partial class App : Application
 
     private static Mutex? _mutex;
     private static EventWaitHandle? _activateEvent;
-    private static Thread? _activateWatcher;
 
     private KeyboardHookService? _keyboardHook;
     private TrayIconService? _tray;
     private ChatWindow? _chatWindow;
     private SettingsWindow? _settingsWindow;
 
-    [STAThread]
-    public static void Main(string[] args)
+    protected override void OnStartup(StartupEventArgs e)
     {
+        base.OnStartup(e);
+
+        // Single instance check: if another instance is running, ask it to show
+        // the window and exit immediately.
         _mutex = new Mutex(true, MutexName, out bool createdNew);
         if (!createdNew)
         {
-            // Another instance is already running: ask it to show the window.
             try
             {
                 using var evt = EventWaitHandle.OpenExisting(ActivateEventName);
@@ -37,26 +38,9 @@ public partial class App : Application
             {
                 // The other instance may not be listening yet; ignore.
             }
+            Shutdown();
             return;
         }
-
-        var app = new App();
-        app.InitializeComponent();
-        app.Run();
-
-        try
-        {
-            _mutex.ReleaseMutex();
-        }
-        catch
-        {
-            // Ignore release failures during shutdown.
-        }
-    }
-
-    protected override void OnStartup(StartupEventArgs e)
-    {
-        base.OnStartup(e);
 
         try
         {
@@ -69,12 +53,12 @@ public partial class App : Application
 
         if (_activateEvent != null)
         {
-            _activateWatcher = new Thread(WatchActivateEvent)
+            var watcher = new Thread(WatchActivateEvent)
             {
                 IsBackground = true,
                 Name = "AskAnywhere.ActivateWatcher"
             };
-            _activateWatcher.Start();
+            watcher.Start();
         }
 
         var settings = SettingsService.Instance.Current;
@@ -95,6 +79,16 @@ public partial class App : Application
     {
         _keyboardHook?.Dispose();
         _tray?.Dispose();
+
+        try
+        {
+            _mutex?.ReleaseMutex();
+        }
+        catch
+        {
+            // Ignore release failures during shutdown.
+        }
+
         base.OnExit(e);
     }
 

@@ -10,7 +10,6 @@
     <RootNamespace>AskAnywhere</RootNamespace>
     <AssemblyName>AskAnywhere</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <StartupObject>AskAnywhere.App</StartupObject>
     <Version>0.1.0</Version>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>

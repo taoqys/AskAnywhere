@@ -76,7 +76,7 @@ public partial class ChatWindow : Window
         bool hasSelection = !string.IsNullOrWhiteSpace(selected);
         if (hasSelection)
         {
-            InputBox.Text = selected;
+            InputBox.Text = selected ?? string.Empty;
         }
 
         if (hasSelection && SettingsService.Instance.Current.AutoSendOnSelection)
