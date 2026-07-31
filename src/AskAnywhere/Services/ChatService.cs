@@ -1,0 +1,144 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace AskAnywhere.Services;
+
+public sealed class ChatMessage
+{
+    public string Role { get; set; } = "user";
+    public string Content { get; set; } = "";
+
+    public ChatMessage()
+    {
+    }
+
+    public ChatMessage(string role, string content)
+    {
+        Role = role;
+        Content = content;
+    }
+}
+
+public sealed class ChatException : Exception
+{
+    public ChatException(string message) : base(message)
+    {
+    }
+}
+
+/// <summary>
+/// Minimal streaming client for any OpenAI-compatible chat/completions API.
+/// </summary>
+public sealed class ChatService
+{
+    private readonly HttpClient _http;
+
+    public ChatService()
+    {
+        _http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+    }
+
+    public async IAsyncEnumerable<string> StreamChatAsync(
+        string baseUrl,
+        string apiKey,
+        string model,
+        double temperature,
+        IReadOnlyList<ChatMessage> messages,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        var url = BuildUrl(baseUrl);
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        }
+
+        var payload = new
+        {
+            model,
+            messages,
+            stream = true,
+            temperature
+        };
+
+        req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            throw new ChatException($"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}: {errorBody}");
+        }
+
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) != null)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+            if (!line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var data = line.Substring(5).Trim();
+            if (data == "[DONE]")
+            {
+                break;
+            }
+
+            string? delta = null;
+            try
+            {
+                using var doc = JsonDocument.Parse(data);
+                if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                {
+                    var first = choices[0];
+                    if (first.TryGetProperty("delta", out var deltaEl) &&
+                        deltaEl.TryGetProperty("content", out var contentEl) &&
+                        contentEl.ValueKind == JsonValueKind.String)
+                    {
+                        delta = contentEl.GetString();
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Skip malformed SSE lines.
+            }
+
+            if (!string.IsNullOrEmpty(delta))
+            {
+                yield return delta;
+            }
+        }
+    }
+
+    private static string BuildUrl(string baseUrl)
+    {
+        var url = baseUrl?.Trim() ?? "";
+        if (string.IsNullOrEmpty(url))
+        {
+            return "https://api.openai.com/v1/chat/completions";
+        }
+        if (url.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+        return url.TrimEnd('/') + "/chat/completions";
+    }
+}

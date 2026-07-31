@@ -1,0 +1,199 @@
+using System;
+using System.Threading;
+using System.Windows;
+using System.Windows.Threading;
+using AskAnywhere.Services;
+using AskAnywhere.Views;
+
+namespace AskAnywhere;
+
+public partial class App : Application
+{
+    private const string MutexName = @"Local\AskAnywhere.SingleInstance";
+    private const string ActivateEventName = @"Local\AskAnywhere.Activate";
+
+    private static Mutex? _mutex;
+    private static EventWaitHandle? _activateEvent;
+    private static Thread? _activateWatcher;
+
+    private KeyboardHookService? _keyboardHook;
+    private TrayIconService? _tray;
+    private ChatWindow? _chatWindow;
+    private SettingsWindow? _settingsWindow;
+
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        _mutex = new Mutex(true, MutexName, out bool createdNew);
+        if (!createdNew)
+        {
+            // Another instance is already running: ask it to show the window.
+            try
+            {
+                using var evt = EventWaitHandle.OpenExisting(ActivateEventName);
+                evt.Set();
+            }
+            catch
+            {
+                // The other instance may not be listening yet; ignore.
+            }
+            return;
+        }
+
+        var app = new App();
+        app.InitializeComponent();
+        app.Run();
+
+        try
+        {
+            _mutex.ReleaseMutex();
+        }
+        catch
+        {
+            // Ignore release failures during shutdown.
+        }
+    }
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        try
+        {
+            _activateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ActivateEventName);
+        }
+        catch
+        {
+            _activateEvent = null;
+        }
+
+        if (_activateEvent != null)
+        {
+            _activateWatcher = new Thread(WatchActivateEvent)
+            {
+                IsBackground = true,
+                Name = "AskAnywhere.ActivateWatcher"
+            };
+            _activateWatcher.Start();
+        }
+
+        var settings = SettingsService.Instance.Current;
+
+        _tray = new TrayIconService();
+        _tray.Show();
+        _tray.DoubleClicked += ToggleChatWindow;
+        _tray.OpenRequested += ShowChatWindow;
+        _tray.SettingsRequested += ShowSettingsWindow;
+        _tray.ExitRequested += ShutdownApp;
+
+        _keyboardHook = new KeyboardHookService(settings.DoubleCtrlThresholdMs);
+        _keyboardHook.DoubleCtrlPressed += ToggleChatWindow;
+        _keyboardHook.Start();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _keyboardHook?.Dispose();
+        _tray?.Dispose();
+        base.OnExit(e);
+    }
+
+    private void WatchActivateEvent()
+    {
+        if (_activateEvent == null)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            try
+            {
+                _activateEvent.WaitOne();
+            }
+            catch
+            {
+                break;
+            }
+
+            try
+            {
+                Dispatcher.Invoke(() => ShowChatWindow());
+            }
+            catch
+            {
+                break;
+            }
+        }
+    }
+
+    private void ToggleChatWindow()
+    {
+        if (_chatWindow == null)
+        {
+            ShowChatWindow();
+            return;
+        }
+
+        if (_chatWindow.IsVisible && _chatWindow.IsActive)
+        {
+            _chatWindow.Hide();
+        }
+        else
+        {
+            ShowChatWindow();
+        }
+    }
+
+    public void ShowChatWindow()
+    {
+        if (_chatWindow == null)
+        {
+            _chatWindow = new ChatWindow();
+            _chatWindow.Closed += (_, _) => _chatWindow = null;
+        }
+
+        if (!_chatWindow.IsVisible)
+        {
+            // Show without stealing focus first so selected text can be captured
+            // from the app that currently has focus.
+            _chatWindow.ShowActivated = false;
+            _chatWindow.Show();
+        }
+
+        if (_chatWindow.WindowState == WindowState.Minimized)
+        {
+            _chatWindow.WindowState = WindowState.Normal;
+        }
+
+        _chatWindow.Topmost = true;
+        _chatWindow.PrepareForShow();
+    }
+
+    public void ShowSettingsWindow()
+    {
+        if (_settingsWindow == null)
+        {
+            _settingsWindow = new SettingsWindow();
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        }
+
+        _settingsWindow.Show();
+        _settingsWindow.Activate();
+    }
+
+    public void ApplySettings()
+    {
+        var s = SettingsService.Instance.Current;
+        if (_keyboardHook != null)
+        {
+            _keyboardHook.ThresholdMs = s.DoubleCtrlThresholdMs;
+        }
+        AutoStartService.SetEnabled(s.AutoStart);
+    }
+
+    private void ShutdownApp()
+    {
+        Shutdown();
+    }
+}
