@@ -7,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using AskAnywhere;
 using AskAnywhere.Models;
@@ -39,6 +38,11 @@ public partial class ChatWindow : Window
     private static readonly SolidColorBrush AiBubbleBrush = new(Color.FromRgb(0xF2, 0xF2, 0xF7));
     private static readonly SolidColorBrush TextDarkBrush = new(Color.FromRgb(0x1F, 0x1F, 0x1F));
     private static readonly SolidColorBrush ReasoningBrush = new(Color.FromRgb(0x8A, 0x8A, 0x8A));
+    // Hairline borders replace DropShadowEffect: any WPF Effect forces the
+    // bubble onto an off-screen bitmap, which disables ClearType and makes
+    // text look blurry.
+    private static readonly SolidColorBrush AiBubbleBorderBrush = new(Color.FromRgb(0xE4, 0xE6, 0xEB));
+    private static readonly SolidColorBrush UserBubbleBorderBrush = new(Color.FromRgb(0x17, 0x3F, 0xB5));
 
     public ChatWindow()
     {
@@ -402,17 +406,21 @@ public partial class ChatWindow : Window
             FontSize = 11,
             Margin = new Thickness(0, 0, 0, 4)
         };
+        ApplySharpText(_streamReasoningBlock);
         _streamTextBlock = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
             Foreground = TextDarkBrush
         };
+        ApplySharpText(_streamTextBlock);
         panel.Children.Add(_streamReasoningBlock);
         panel.Children.Add(_streamTextBlock);
 
         var aiBorder = new Border
         {
             Background = AiBubbleBrush,
+            BorderBrush = AiBubbleBorderBrush,
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 4, 0, 4),
@@ -420,7 +428,6 @@ public partial class ChatWindow : Window
             HorizontalAlignment = HorizontalAlignment.Left,
             Child = panel
         };
-        aiBorder.Effect = CreateBubbleShadow();
         MessagesPanel.Children.Add(aiBorder);
         _streamBuffer = new StringBuilder();
         _streamReasoning = new StringBuilder();
@@ -602,9 +609,15 @@ public partial class ChatWindow : Window
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = Brushes.White
             };
+        if (body is TextBlock userText)
+        {
+            ApplySharpText(userText);
+        }
         var border = new Border
         {
             Background = role == "user" ? UserBubbleBrush : AiBubbleBrush,
+            BorderBrush = role == "user" ? UserBubbleBorderBrush : AiBubbleBorderBrush,
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 4, 0, 4),
@@ -612,20 +625,19 @@ public partial class ChatWindow : Window
             HorizontalAlignment = role == "user" ? HorizontalAlignment.Right : HorizontalAlignment.Left,
             Child = body
         };
-        border.Effect = CreateBubbleShadow();
         MessagesPanel.Children.Add(border);
         ScrollToBottom();
     }
 
-    private static DropShadowEffect CreateBubbleShadow()
+    /// <summary>
+    /// Forces ClearType pixel-aligned text rendering. Without it, text inside
+    /// the chat bubbles can fall back to grayscale antialiasing and look soft.
+    /// </summary>
+    private static void ApplySharpText(TextBlock textBlock)
     {
-        return new DropShadowEffect
-        {
-            BlurRadius = 8,
-            ShadowDepth = 1,
-            Opacity = 0.12,
-            Color = Colors.Black
-        };
+        TextOptions.SetTextFormattingMode(textBlock, TextFormattingMode.Display);
+        TextOptions.SetTextRenderingMode(textBlock, TextRenderingMode.ClearType);
+        TextOptions.SetTextHintingMode(textBlock, TextHintingMode.Fixed);
     }
 
     private void ScrollToBottom()

@@ -61,6 +61,7 @@ public static class MarkdownRenderService
             FontFamily = new FontFamily("Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI"),
             FontSize = 13
         };
+        ApplySharpText(viewer);
 
         try
         {
@@ -75,9 +76,31 @@ public static class MarkdownRenderService
             doc.FontFamily = viewer.FontFamily;
             doc.FontSize = viewer.FontSize;
             doc.Foreground = new SolidColorBrush(Color.FromRgb(0x1F, 0x1F, 0x1F));
+            ApplySharpText(doc);
             viewer.Document = doc;
         }
 
         return viewer;
+    }
+
+    /// <summary>
+    /// Enables ClearType pixel-aligned rendering so the Markdown text is as
+    /// crisp as the rest of the UI.
+    /// </summary>
+    private static void ApplySharpText(System.Windows.Documents.FlowDocument document)
+    {
+        TextOptions.SetTextFormattingMode(document, TextFormattingMode.Display);
+        TextOptions.SetTextRenderingMode(document, TextRenderingMode.ClearType);
+        TextOptions.SetTextHintingMode(document, TextHintingMode.Fixed);
+    }
+
+    /// <summary>
+    /// Enables ClearType pixel-aligned rendering on the viewer control itself.
+    /// </summary>
+    private static void ApplySharpText(RichTextBox viewer)
+    {
+        TextOptions.SetTextFormattingMode(viewer, TextFormattingMode.Display);
+        TextOptions.SetTextRenderingMode(viewer, TextRenderingMode.ClearType);
+        TextOptions.SetTextHintingMode(viewer, TextHintingMode.Fixed);
     }
 }

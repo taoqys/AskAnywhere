@@ -23,6 +23,9 @@
                 <Setter Property="TextAlignment" Value="Left"/>
                 <Setter Property="PagePadding" Value="0"/>
                 <Setter Property="LineHeight" Value="1.35"/>
+                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
                 <Style.Resources>
                     <!-- Paragraph / headings / indented code block -->
                     <Style TargetType="Paragraph">
@@ -92,6 +95,9 @@
                         <Setter Property="Padding" Value="10,6"/>
                         <Setter Property="Margin" Value="0,4,0,8"/>
                         <Setter Property="WordWrap" Value="False"/>
+                        <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                        <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
                     </Style>
 
                     <!-- Inline code -->
