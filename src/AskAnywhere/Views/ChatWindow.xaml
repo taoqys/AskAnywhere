@@ -9,14 +9,14 @@
         Topmost="True"
         ShowInTaskbar="True"
         WindowStartupLocation="Manual"
-        Background="#FF1E1E1E"
-        Foreground="#FFE8E8E8"
+        Background="#FFFFFFFF"
+        Foreground="#FF1F1F1F"
         FontFamily="Microsoft YaHei UI, Segoe UI"
         FontSize="13">
     <Window.Resources>
         <Style x:Key="IconButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#FFC8C8C8"/>
+            <Setter Property="Foreground" Value="#FF444444"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Width" Value="36"/>
             <Setter Property="Height" Value="32"/>
@@ -30,15 +30,22 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FF3A3A3A"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFE5E5E5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="GhostButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FFEDEDED"/>
+            <Setter Property="Foreground" Value="#FF1F1F1F"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
     </Window.Resources>
-    <Border BorderBrush="#FF3A3A3A" BorderThickness="1">
+    <Border BorderBrush="#FFE0E0E0" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -47,7 +54,8 @@
             </Grid.RowDefinitions>
 
             <!-- Title bar -->
-            <Border Grid.Row="0" Background="#FF2B2B2B" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Border Grid.Row="0" Background="#FFF5F5F5" BorderThickness="0,0,0,1" BorderBrush="#FFE0E0E0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -69,31 +77,29 @@
             </ScrollViewer>
 
             <!-- Input -->
-            <Border Grid.Row="2" Background="#FF252525" BorderThickness="0,1,0,0" BorderBrush="#FF3A3A3A">
+            <Border Grid.Row="2" Background="#FFFAFAFA" BorderThickness="0,1,0,0" BorderBrush="#FFE0E0E0">
                 <StackPanel Margin="10,8">
                     <DockPanel Margin="0,0,0,6">
-                        <TextBlock Text="模式:" VerticalAlignment="Center" Foreground="#FF9A9A9A"/>
+                        <TextBlock Text="模式:" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
                         <ComboBox x:Name="ModeCombo" Margin="8,0,0,0" Width="120" HorizontalAlignment="Left"
-                                  Background="#FF252525" Foreground="White"/>
+                                  Background="#FFFFFFFF" Foreground="#FF1F1F1F"/>
                         <TextBlock x:Name="StatusText" DockPanel.Dock="Right" VerticalAlignment="Center"
-                                   Foreground="#FF8A8A8A" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                   Foreground="#FF6B6B6B" FontSize="11" TextTrimming="CharacterEllipsis"/>
                     </DockPanel>
                     <TextBox x:Name="InputBox" AcceptsReturn="True" TextWrapping="Wrap"
                              MinHeight="60" MaxHeight="140" VerticalScrollBarVisibility="Auto"
-                             Background="#FF1E1E1E" Foreground="White" BorderBrush="#FF3A3A3A"
-                             CaretBrush="White" Padding="8,6" VerticalContentAlignment="Top"
+                             Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0"
+                             CaretBrush="#FF1F1F1F" Padding="8,6" VerticalContentAlignment="Top"
                              KeyDown="InputBox_KeyDown"/>
                     <DockPanel Margin="0,6,0,0">
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                            <Button x:Name="ClearButton" Content="清空" Click="ClearButton_Click" Margin="0,0,8,0"
-                                    Padding="10,4" Background="#FF3A3A3A" Foreground="White" BorderThickness="0"/>
-                            <Button x:Name="SettingsButton2" Content="设置" Click="SettingsButton_Click" Margin="0,0,8,0"
-                                    Padding="10,4" Background="#FF3A3A3A" Foreground="White" BorderThickness="0"/>
-                            <TextBlock Text="Ctrl+Enter 发送 · Esc 隐藏" VerticalAlignment="Center"
-                                       Foreground="#FF8A8A8A" FontSize="11"/>
+                            <Button x:Name="ClearButton" Content="清空" Click="ClearButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>
+                            <Button x:Name="SettingsButton2" Content="设置" Click="SettingsButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>
+                            <TextBlock x:Name="HintText" Text="Ctrl+Enter 发送 · Esc 隐藏" VerticalAlignment="Center"
+                                       Foreground="#FF757575" FontSize="11"/>
                         </StackPanel>
                         <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送 (Ctrl+Enter)"
-                                Click="SendButton_Click" Padding="14,6" Background="#FF2563EB"
+                                Click="SendButton_Click" Padding="14,6" Background="#FF1D4ED8"
                                 Foreground="White" BorderThickness="0"/>
                     </DockPanel>
                 </StackPanel>

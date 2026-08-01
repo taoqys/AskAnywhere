@@ -2,34 +2,35 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AskAnywhere 设置"
-        Width="540" Height="580"
+        Width="540" Height="600"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        Background="#FF1E1E1E"
-        Foreground="#FFE8E8E8"
+        Background="#FFFFFFFF"
+        Foreground="#FF1F1F1F"
         FontFamily="Microsoft YaHei UI, Segoe UI"
         FontSize="13">
     <StackPanel Margin="20,16">
         <TextBlock Text="API 配置" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,10"/>
-        <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF9A9A9A"/>
-        <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" Background="#FF252525" Foreground="White" BorderBrush="#FF3A3A3A" CaretBrush="White"/>
-        <TextBlock Text="API Key" Foreground="#FF9A9A9A"/>
-        <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" Background="#FF252525" Foreground="White" BorderBrush="#FF3A3A3A" CaretBrush="White"/>
-        <TextBlock Text="模型（Model）" Foreground="#FF9A9A9A"/>
-        <TextBox x:Name="ModelBox" Margin="0,4,0,12" Padding="6,4" Background="#FF252525" Foreground="White" BorderBrush="#FF3A3A3A" CaretBrush="White"/>
+        <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF5A5A5A"/>
+        <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F"/>
+        <TextBlock Text="API Key" Foreground="#FF5A5A5A"/>
+        <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F"/>
+        <TextBlock Text="模型（Model）" Foreground="#FF5A5A5A"/>
+        <TextBox x:Name="ModelBox" Margin="0,4,0,12" Padding="6,4" Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F"/>
         <DockPanel Margin="0,0,0,12">
-            <TextBlock Text="Temperature:" VerticalAlignment="Center" Foreground="#FF9A9A9A"/>
+            <TextBlock Text="Temperature:" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
             <TextBlock x:Name="TempValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
             <Slider x:Name="TempSlider" Minimum="0" Maximum="2" TickFrequency="0.1"
                     ValueChanged="TempSlider_ValueChanged"/>
         </DockPanel>
 
         <TextBlock Text="行为" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-        <CheckBox x:Name="AutoSendCheck" Content="选中文字后自动发送（不勾选则仅填充输入框）" Foreground="#FFC8C8C8" Margin="0,0,0,8"/>
-        <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Foreground="#FFC8C8C8" Margin="0,0,0,12"/>
+        <CheckBox x:Name="AutoSendCheck" Content="选中文字后自动发送（不勾选则用 ↑/↓ 选操作后回车发送）" Foreground="#FF1F1F1F" Margin="0,0,0,8"/>
+        <CheckBox x:Name="AutoHideCheck" Content="窗口失焦后自动隐藏" Foreground="#FF1F1F1F" Margin="0,0,0,8"/>
+        <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Foreground="#FF1F1F1F" Margin="0,0,0,12"/>
 
         <TextBlock Text="快捷键" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-        <TextBlock Text="双击 Ctrl 唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF9A9A9A"/>
+        <TextBlock Text="双击 Ctrl 唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF5A5A5A"/>
         <DockPanel Margin="0,4,0,4">
             <TextBlock x:Name="ThresholdValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
             <Slider x:Name="ThresholdSlider" Minimum="100" Maximum="800" TickFrequency="50" IsSnapToTickEnabled="True"
@@ -38,13 +39,13 @@
 
         <TextBlock Text="自定义 Prompt（模式选「自定义」时生效）" FontWeight="SemiBold" FontSize="15" Margin="0,14,0,6"/>
         <TextBox x:Name="CustomPromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="70"
-                 Background="#FF252525" Foreground="White" BorderBrush="#FF3A3A3A" CaretBrush="White" Padding="6,4"/>
+                 Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F" Padding="6,4"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
-            <Button Content="保存" Click="SaveButton_Click" Padding="20,6" Background="#FF2563EB"
+            <Button Content="保存" Click="SaveButton_Click" Padding="20,6" Background="#FF1D4ED8"
                     Foreground="White" BorderThickness="0" Margin="0,0,10,0"/>
-            <Button Content="取消" Click="CancelButton_Click" Padding="20,6" Background="#FF3A3A3A"
-                    Foreground="White" BorderThickness="0"/>
+            <Button Content="取消" Click="CancelButton_Click" Padding="20,6" Background="#FFEDEDED"
+                    Foreground="#FF1F1F1F" BorderThickness="0"/>
         </StackPanel>
     </StackPanel>
 </Window>

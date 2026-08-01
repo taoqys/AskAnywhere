@@ -71,6 +71,7 @@ public sealed class SettingsService
                 Model = _settings.Model,
                 Temperature = _settings.Temperature,
                 AutoSendOnSelection = _settings.AutoSendOnSelection,
+                AutoHideOnDeactivate = _settings.AutoHideOnDeactivate,
                 DoubleCtrlThresholdMs = _settings.DoubleCtrlThresholdMs,
                 AutoStart = _settings.AutoStart,
                 CustomPrompt = _settings.CustomPrompt

@@ -23,6 +23,11 @@ public partial class ChatWindow : Window
     private StringBuilder? _streamBuffer;
     private TextBlock? _streamTextBlock;
     private DispatcherTimer? _streamTimer;
+    private DispatcherTimer? _deactivateTimer;
+
+    private static readonly SolidColorBrush UserBubbleBrush = new(Color.FromRgb(0x1D, 0x4E, 0xD8));
+    private static readonly SolidColorBrush AiBubbleBrush = new(Color.FromRgb(0xF2, 0xF2, 0xF7));
+    private static readonly SolidColorBrush TextDarkBrush = new(Color.FromRgb(0x1F, 0x1F, 0x1F));
 
     public ChatWindow()
     {
@@ -36,6 +41,7 @@ public partial class ChatWindow : Window
         ModeCombo.SelectedIndex = 0;
 
         PreviewKeyDown += ChatWindow_PreviewKeyDown;
+        Deactivated += ChatWindow_Deactivated;
     }
 
     private void ChatWindow_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -51,17 +57,42 @@ public partial class ChatWindow : Window
             {
                 Hide();
             }
+            return;
+        }
+
+        // Keyboard-first flow: when the mode selector has focus, Up/Down pick
+        // the action and Enter sends the message right away.
+        if (ModeCombo.IsKeyboardFocusWithin && !ModeCombo.IsDropDownOpen)
+        {
+            if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+                MoveMode(-1);
+            }
+            else if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+                MoveMode(1);
+            }
+            else if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                SendMessage();
+            }
         }
     }
 
     /// <summary>
     /// Called right before/after the window is shown. Positions the window near
-    /// the cursor, captures any selected text, fills the input box, and sends
-    /// automatically when enabled.
+    /// the cursor, clears the previous keyword, captures any new selected text,
+    /// and focuses the right control for the current flow.
     /// </summary>
     public async void PrepareForShow()
     {
         PositionNearCursor();
+
+        // Fresh state on every open: clear the keyword from the last session.
+        InputBox.Clear();
 
         string? selected = null;
         try
@@ -74,17 +105,33 @@ public partial class ChatWindow : Window
         }
 
         bool hasSelection = !string.IsNullOrWhiteSpace(selected);
+        var settings = SettingsService.Instance.Current;
+
         if (hasSelection)
         {
-            InputBox.Text = selected ?? string.Empty;
-        }
-
-        if (hasSelection && SettingsService.Instance.Current.AutoSendOnSelection)
-        {
-            SendMessage();
+            InputBox.Text = selected;
         }
 
         Activate();
+
+        if (hasSelection && settings.AutoSendOnSelection)
+        {
+            // Automatic flow: send immediately, then focus the input box.
+            HintText.Text = "Ctrl+Enter 发送 · Esc 隐藏";
+            SendMessage();
+            InputBox.Focus();
+            return;
+        }
+
+        if (hasSelection)
+        {
+            // Keyboard-first flow: pick an action with Up/Down, Enter to send.
+            HintText.Text = "↑/↓ 选择操作 · 回车发送 · Esc 隐藏";
+            ModeCombo.Focus();
+            return;
+        }
+
+        HintText.Text = "Ctrl+Enter 发送 · Esc 隐藏";
         InputBox.Focus();
         InputBox.CaretIndex = InputBox.Text.Length;
     }
@@ -114,6 +161,23 @@ public partial class ChatWindow : Window
         {
             // Keep the current position on failure.
         }
+    }
+
+    private void MoveMode(int delta)
+    {
+        int count = ModeCombo.Items.Count;
+        if (count == 0)
+        {
+            return;
+        }
+
+        int idx = ModeCombo.SelectedIndex;
+        if (idx < 0)
+        {
+            idx = 0;
+        }
+        idx = (idx + delta + count) % count;
+        ModeCombo.SelectedIndex = idx;
     }
 
     private void SendMessage()
@@ -157,11 +221,11 @@ public partial class ChatWindow : Window
         var aiText = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
-            Foreground = Brushes.White
+            Foreground = TextDarkBrush
         };
         var aiBorder = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(0x2B, 0x2B, 0x2B)),
+            Background = AiBubbleBrush,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 4, 0, 4),
@@ -294,11 +358,11 @@ public partial class ChatWindow : Window
         {
             Text = content,
             TextWrapping = TextWrapping.Wrap,
-            Foreground = Brushes.White
+            Foreground = role == "user" ? Brushes.White : TextDarkBrush
         };
         var border = new Border
         {
-            Background = new SolidColorBrush(role == "user" ? Color.FromRgb(0x25, 0x63, 0xEB) : Color.FromRgb(0x2B, 0x2B, 0x2B)),
+            Background = role == "user" ? UserBubbleBrush : AiBubbleBrush,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 4, 0, 4),
@@ -392,5 +456,50 @@ public partial class ChatWindow : Window
         {
             DragMove();
         }
+    }
+
+    /// <summary>
+    /// Auto-hide when the window loses focus (unless another window of this
+    /// app, e.g. Settings, took the focus).
+    /// </summary>
+    private void ChatWindow_Deactivated(object? sender, EventArgs e)
+    {
+        if (!SettingsService.Instance.Current.AutoHideOnDeactivate)
+        {
+            return;
+        }
+
+        _deactivateTimer?.Stop();
+        _deactivateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _deactivateTimer.Tick += DeactivateTimer_Tick;
+        _deactivateTimer.Start();
+    }
+
+    private void DeactivateTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_deactivateTimer != null)
+        {
+            _deactivateTimer.Stop();
+            _deactivateTimer = null;
+        }
+
+        if (IsActive || AnyAppWindowActive())
+        {
+            return;
+        }
+
+        Hide();
+    }
+
+    private static bool AnyAppWindowActive()
+    {
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w.IsVisible && w.IsActive)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

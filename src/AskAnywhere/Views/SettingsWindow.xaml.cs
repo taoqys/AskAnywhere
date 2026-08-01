@@ -18,6 +18,7 @@ public partial class SettingsWindow : Window
         TempSlider.Value = s.Temperature;
         TempValue.Text = s.Temperature.ToString("0.0");
         AutoSendCheck.IsChecked = s.AutoSendOnSelection;
+        AutoHideCheck.IsChecked = s.AutoHideOnDeactivate;
         AutoStartCheck.IsChecked = s.AutoStart;
         ThresholdSlider.Value = s.DoubleCtrlThresholdMs;
         ThresholdValue.Text = s.DoubleCtrlThresholdMs.ToString();
@@ -50,6 +51,7 @@ public partial class SettingsWindow : Window
             settings.Model = ModelBox.Text.Trim();
             settings.Temperature = Math.Round(TempSlider.Value, 1);
             settings.AutoSendOnSelection = AutoSendCheck.IsChecked == true;
+            settings.AutoHideOnDeactivate = AutoHideCheck.IsChecked == true;
             settings.AutoStart = AutoStartCheck.IsChecked == true;
             settings.DoubleCtrlThresholdMs = (int)Math.Round(ThresholdSlider.Value);
             settings.CustomPrompt = CustomPromptBox.Text.Trim();
