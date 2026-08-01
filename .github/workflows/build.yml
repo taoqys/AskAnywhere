@@ -30,7 +30,7 @@ jobs:
         run: dotnet publish src/AskAnywhere/AskAnywhere.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o publish
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: AskAnywhere-win-x64
           path: publish/
