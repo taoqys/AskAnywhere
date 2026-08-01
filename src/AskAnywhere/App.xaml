@@ -1,6 +1,7 @@
 <Application x:Class="AskAnywhere.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
@@ -9,6 +10,165 @@
                 <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml"/>
                 <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
+            <!--
+              Light-theme Markdown document style used to render AI replies.
+              Tags are set by the MdXaml renderer (Heading1..6, CodeBlock,
+              CodeSpan, Blockquote, Note, TableHeader/TableBody, ...).
+            -->
+            <Style x:Key="AskMarkdownStyle" TargetType="FlowDocument">
+                <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Foreground" Value="#FF1F1F1F"/>
+                <Setter Property="TextAlignment" Value="Left"/>
+                <Setter Property="PagePadding" Value="0"/>
+                <Setter Property="LineHeight" Value="1.35"/>
+                <Style.Resources>
+                    <!-- Paragraph / headings / indented code block -->
+                    <Style TargetType="Paragraph">
+                        <Setter Property="Margin" Value="0,2,0,8"/>
+                        <Setter Property="TextIndent" Value="0"/>
+                        <Style.Triggers>
+                            <Trigger Property="Tag" Value="Heading1">
+                                <Setter Property="FontSize" Value="20"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Margin" Value="0,10,0,6"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Heading2">
+                                <Setter Property="FontSize" Value="17"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Margin" Value="0,8,0,6"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Heading3">
+                                <Setter Property="FontSize" Value="15"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Margin" Value="0,6,0,4"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Heading4">
+                                <Setter Property="FontSize" Value="14"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Margin" Value="0,6,0,4"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Heading5">
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Margin" Value="0,4,0,2"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Heading6">
+                                <Setter Property="FontSize" Value="12.5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="#FF6B7280"/>
+                                <Setter Property="Margin" Value="0,4,0,2"/>
+                            </Trigger>
+                            <!-- 4-space indented code block (no language tag) -->
+                            <Trigger Property="Tag" Value="CodeBlock">
+                                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Foreground" Value="#FF24292F"/>
+                                <Setter Property="Background" Value="#FFECEEF3"/>
+                                <Setter Property="Padding" Value="10,8"/>
+                                <Setter Property="Margin" Value="0,4,0,8"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Note">
+                                <Setter Property="Background" Value="#FFEFF4FF"/>
+                                <Setter Property="BorderBrush" Value="#FFBFD4F8"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Padding" Value="10,8"/>
+                                <Setter Property="Margin" Value="0,4,0,8"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Fenced code blocks (AvalonEdit TextEditor with syntax highlight) -->
+                    <Style TargetType="avalonEdit:TextEditor">
+                        <Setter Property="Background" Value="#FFECEEF3"/>
+                        <Setter Property="BorderBrush" Value="#FFDEE1E8"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Foreground" Value="#FF24292F"/>
+                        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+                        <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+                        <Setter Property="Padding" Value="10,6"/>
+                        <Setter Property="Margin" Value="0,4,0,8"/>
+                        <Setter Property="WordWrap" Value="False"/>
+                    </Style>
+
+                    <!-- Inline code -->
+                    <Style TargetType="Run">
+                        <Style.Triggers>
+                            <Trigger Property="Tag" Value="CodeSpan">
+                                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Foreground" Value="#FF0B5E9E"/>
+                                <Setter Property="Background" Value="#FFE9EBF0"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                    <Style TargetType="Span">
+                        <Style.Triggers>
+                            <Trigger Property="Tag" Value="CodeSpan">
+                                <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New"/>
+                                <Setter Property="FontSize" Value="12"/>
+                                <Setter Property="Foreground" Value="#FF0B5E9E"/>
+                                <Setter Property="Background" Value="#FFE9EBF0"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Blockquote -->
+                    <Style TargetType="Section">
+                        <Style.Triggers>
+                            <Trigger Property="Tag" Value="Blockquote">
+                                <Setter Property="BorderBrush" Value="#FFD0D5DD"/>
+                                <Setter Property="BorderThickness" Value="4,0,0,0"/>
+                                <Setter Property="Padding" Value="12,2,0,2"/>
+                                <Setter Property="Margin" Value="0,4,0,8"/>
+                                <Setter Property="Foreground" Value="#FF57606A"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Links -->
+                    <Style TargetType="Hyperlink">
+                        <Setter Property="Foreground" Value="#FF2563EB"/>
+                        <Setter Property="TextDecorations" Value="None"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="TextDecorations" Value="Underline"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <!-- Tables -->
+                    <Style TargetType="Table">
+                        <Setter Property="CellSpacing" Value="0"/>
+                        <Setter Property="BorderThickness" Value="0.5"/>
+                        <Setter Property="BorderBrush" Value="#FFD0D5DD"/>
+                        <Setter Property="Margin" Value="0,4,0,8"/>
+                    </Style>
+                    <Style TargetType="TableCell">
+                        <Setter Property="BorderThickness" Value="0.5"/>
+                        <Setter Property="BorderBrush" Value="#FFD0D5DD"/>
+                        <Setter Property="Padding" Value="8,4"/>
+                    </Style>
+                    <Style TargetType="TableRowGroup">
+                        <Style.Triggers>
+                            <Trigger Property="Tag" Value="TableHeader">
+                                <Setter Property="Background" Value="#FFF6F7F9"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                    <Style TargetType="TableRow">
+                        <Style.Triggers>
+                            <Trigger Property="Tag" Value="OddTableRow">
+                                <Setter Property="Background" Value="#FFFAFBFC"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Style.Resources>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

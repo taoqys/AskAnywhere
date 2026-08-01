@@ -26,6 +26,7 @@ public partial class ChatWindow : Window
     private StringBuilder? _streamReasoning;
     private TextBlock? _streamTextBlock;
     private TextBlock? _streamReasoningBlock;
+    private StackPanel? _streamPanel;
     private DispatcherTimer? _streamTimer;
     private DispatcherTimer? _deactivateTimer;
 
@@ -393,6 +394,7 @@ public partial class ChatWindow : Window
         // Create the assistant bubble: reasoning block (grey, when enabled)
         // above the final answer block.
         var panel = new StackPanel();
+        _streamPanel = panel;
         _streamReasoningBlock = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
@@ -539,12 +541,43 @@ public partial class ChatWindow : Window
             }
         }
 
+        // Stream is over: swap the plain-text block for a fully rendered
+        // Markdown view (headings, lists, tables and highlighted code).
+        ReplaceStreamTextWithMarkdown();
+
         _streamBuffer = null;
         _streamReasoning = null;
         _streamTextBlock = null;
         _streamReasoningBlock = null;
+        _streamPanel = null;
         _isGenerating = false;
         UpdateSendButton();
+    }
+
+    /// <summary>
+    /// Replaces the plain streaming TextBlock with a Markdown-rendered viewer
+    /// once generation has finished. Does nothing when the window was already
+    /// closed (the bubble is gone) or the answer is empty.
+    /// </summary>
+    private void ReplaceStreamTextWithMarkdown()
+    {
+        if (_streamTextBlock == null || _streamPanel == null)
+        {
+            return;
+        }
+
+        var text = _streamTextBlock.Text;
+        if (string.IsNullOrWhiteSpace(text) || !_streamPanel.Children.Contains(_streamTextBlock))
+        {
+            return;
+        }
+
+        int idx = _streamPanel.Children.IndexOf(_streamTextBlock);
+        _streamPanel.Children.RemoveAt(idx);
+
+        var viewer = MarkdownRenderService.CreateViewer(text);
+        _streamPanel.Children.Insert(idx, viewer);
+        ScrollToBottom();
     }
 
     private void StopGeneration()
@@ -559,12 +592,16 @@ public partial class ChatWindow : Window
 
     private void AddMessage(string role, string content)
     {
-        var tb = new TextBlock
-        {
-            Text = content,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = role == "user" ? Brushes.White : TextDarkBrush
-        };
+        // AI replies are rendered as Markdown (headings, lists, code blocks
+        // with syntax highlighting); user bubbles stay plain text.
+        FrameworkElement body = role == "assistant"
+            ? MarkdownRenderService.CreateViewer(content)
+            : new TextBlock
+            {
+                Text = content,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = Brushes.White
+            };
         var border = new Border
         {
             Background = role == "user" ? UserBubbleBrush : AiBubbleBrush,
@@ -573,7 +610,7 @@ public partial class ChatWindow : Window
             Margin = new Thickness(0, 4, 0, 4),
             MaxWidth = 380,
             HorizontalAlignment = role == "user" ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-            Child = tb
+            Child = body
         };
         border.Effect = CreateBubbleShadow();
         MessagesPanel.Children.Add(border);

@@ -60,12 +60,20 @@ public partial class HistoryWindow : Window
                     Foreground = msg.Role == "user" ? UserHeaderBrush : AiHeaderBrush,
                     Margin = new Thickness(0, 10, 0, 3)
                 });
-                DetailPanel.Children.Add(new TextBlock
+                // AI messages are rendered as Markdown with code highlighting.
+                if (msg.Role == "assistant")
                 {
-                    Text = msg.Content,
-                    TextWrapping = TextWrapping.Wrap,
-                    Foreground = BodyBrush
-                });
+                    DetailPanel.Children.Add(MarkdownRenderService.CreateViewer(msg.Content));
+                }
+                else
+                {
+                    DetailPanel.Children.Add(new TextBlock
+                    {
+                        Text = msg.Content,
+                        TextWrapping = TextWrapping.Wrap,
+                        Foreground = BodyBrush
+                    });
+                }
             }
         }
     }
