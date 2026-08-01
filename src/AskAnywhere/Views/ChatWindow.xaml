@@ -17,9 +17,11 @@
       WindowChrome removes the DWM non-client frame that shows as a thin white
       strip on top of borderless windows. CaptionHeight=0 disables the system
       caption; edge resizing is still provided by ResizeBorderThickness.
+      GlassFrameThickness="0,0,0,1" keeps the top strip away while letting DWM
+      draw the native drop shadow so the window stands out on white desktops.
     -->
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1"
                       CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
 
