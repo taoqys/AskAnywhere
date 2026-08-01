@@ -55,6 +55,10 @@ public sealed class SettingsService
                 if (s != null)
                 {
                     s.ApiKey = Decrypt(s.ApiKey) ?? "";
+                    if (s.Modes == null || s.Modes.Count == 0)
+                    {
+                        s.Modes = new AppSettings().Modes;
+                    }
                     return s;
                 }
             }
@@ -82,7 +86,9 @@ public sealed class SettingsService
                 HotkeyKey = _settings.HotkeyKey,
                 HotkeyIntervalMs = _settings.HotkeyIntervalMs,
                 AutoStart = _settings.AutoStart,
-                CustomPrompt = _settings.CustomPrompt
+                Modes = _settings.Modes,
+                ThinkingEnabled = _settings.ThinkingEnabled,
+                ThinkingBudgetTokens = _settings.ThinkingBudgetTokens
             };
             var json = JsonSerializer.Serialize(copy, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_filePath, json);

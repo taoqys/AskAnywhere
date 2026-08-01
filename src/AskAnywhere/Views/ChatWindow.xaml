@@ -105,10 +105,10 @@
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                             <Button x:Name="ClearButton" Content="清空" Click="ClearButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>
                             <Button x:Name="SettingsButton2" Content="设置" Click="SettingsButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>
-                            <TextBlock x:Name="HintText" Text="Ctrl+Enter 发送 · Esc 隐藏" VerticalAlignment="Center"
+                            <TextBlock x:Name="HintText" Text="Enter 发送 · Shift+Enter 换行 · Esc 隐藏" VerticalAlignment="Center"
                                        Foreground="#FF757575" FontSize="11"/>
                         </StackPanel>
-                        <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送 (Ctrl+Enter)"
+                        <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送"
                                 Click="SendButton_Click" Padding="14,6" Background="#FF1D4ED8"
                                 Foreground="White" BorderThickness="0"/>
                     </DockPanel>

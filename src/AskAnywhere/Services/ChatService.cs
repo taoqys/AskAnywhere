@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,7 +14,10 @@ namespace AskAnywhere.Services;
 
 public sealed class ChatMessage
 {
+    [JsonPropertyName("role")]
     public string Role { get; set; } = "user";
+
+    [JsonPropertyName("content")]
     public string Content { get; set; } = "";
 
     public ChatMessage()
@@ -24,6 +28,20 @@ public sealed class ChatMessage
     {
         Role = role;
         Content = content;
+    }
+}
+
+/// <summary>A streaming chunk: the final answer (Content) and/or the hidden
+/// chain-of-thought (Reasoning, DeepSeek "reasoning_content").</summary>
+public sealed class ChatDelta
+{
+    public string? Content { get; init; }
+    public string? Reasoning { get; init; }
+
+    public ChatDelta(string? content, string? reasoning)
+    {
+        Content = content;
+        Reasoning = reasoning;
     }
 }
 
@@ -46,11 +64,13 @@ public sealed class ChatService
         _http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
     }
 
-    public async IAsyncEnumerable<string> StreamChatAsync(
+    public async IAsyncEnumerable<ChatDelta> StreamChatAsync(
         string baseUrl,
         string apiKey,
         string model,
         double temperature,
+        bool thinkingEnabled,
+        int thinkingBudgetTokens,
         IReadOnlyList<ChatMessage> messages,
         [EnumeratorCancellation] CancellationToken ct)
     {
@@ -62,13 +82,23 @@ public sealed class ChatService
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         }
 
-        var payload = new
+        var payload = new Dictionary<string, object?>
         {
-            model,
-            messages,
-            stream = true,
-            temperature
+            ["model"] = model,
+            ["messages"] = messages,
+            ["stream"] = true,
+            ["temperature"] = temperature
         };
+
+        if (thinkingEnabled)
+        {
+            var thinking = new Dictionary<string, object?> { ["type"] = "enabled" };
+            if (thinkingBudgetTokens > 0)
+            {
+                thinking["budget_tokens"] = thinkingBudgetTokens;
+            }
+            payload["thinking"] = thinking;
+        }
 
         req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
@@ -101,18 +131,24 @@ public sealed class ChatService
                 break;
             }
 
-            string? delta = null;
+            string? content = null;
+            string? reasoning = null;
             try
             {
                 using var doc = JsonDocument.Parse(data);
                 if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
                 {
                     var first = choices[0];
-                    if (first.TryGetProperty("delta", out var deltaEl) &&
-                        deltaEl.TryGetProperty("content", out var contentEl) &&
-                        contentEl.ValueKind == JsonValueKind.String)
+                    if (first.TryGetProperty("delta", out var deltaEl))
                     {
-                        delta = contentEl.GetString();
+                        if (deltaEl.TryGetProperty("content", out var contentEl) && contentEl.ValueKind == JsonValueKind.String)
+                        {
+                            content = contentEl.GetString();
+                        }
+                        if (deltaEl.TryGetProperty("reasoning_content", out var reasoningEl) && reasoningEl.ValueKind == JsonValueKind.String)
+                        {
+                            reasoning = reasoningEl.GetString();
+                        }
                     }
                 }
             }
@@ -121,11 +157,45 @@ public sealed class ChatService
                 // Skip malformed SSE lines.
             }
 
-            if (!string.IsNullOrEmpty(delta))
+            if (!string.IsNullOrEmpty(content) || !string.IsNullOrEmpty(reasoning))
             {
-                yield return delta;
+                yield return new ChatDelta(content, reasoning);
             }
         }
+    }
+
+    /// <summary>Fetches the model list from an OpenAI-compatible GET /models endpoint.</summary>
+    public async Task<List<string>> GetModelsAsync(string baseUrl, string apiKey, CancellationToken ct)
+    {
+        var url = (baseUrl ?? "").Trim().TrimEnd('/') + "/models";
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        }
+
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            throw new ChatException($"HTTP {(int)resp.StatusCode}: {errorBody}");
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
+
+        var list = new List<string>();
+        if (doc.RootElement.TryGetProperty("data", out var data))
+        {
+            foreach (var item in data.EnumerateArray())
+            {
+                if (item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
+                {
+                    list.Add(id.GetString()!);
+                }
+            }
+        }
+        return list;
     }
 
     private static string BuildUrl(string baseUrl)

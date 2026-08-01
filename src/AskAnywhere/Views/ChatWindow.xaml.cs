@@ -21,24 +21,27 @@ public partial class ChatWindow : Window
     private bool _isGenerating;
 
     private StringBuilder? _streamBuffer;
+    private StringBuilder? _streamReasoning;
     private TextBlock? _streamTextBlock;
+    private TextBlock? _streamReasoningBlock;
     private DispatcherTimer? _streamTimer;
     private DispatcherTimer? _deactivateTimer;
+
+    // True while the "pick an action with Up/Down" flow is active (right after
+    // the window opens with a selection). Editing the input box disables it.
+    private bool _modePickerActive;
 
     private static readonly SolidColorBrush UserBubbleBrush = new(Color.FromRgb(0x1D, 0x4E, 0xD8));
     private static readonly SolidColorBrush AiBubbleBrush = new(Color.FromRgb(0xF2, 0xF2, 0xF7));
     private static readonly SolidColorBrush TextDarkBrush = new(Color.FromRgb(0x1F, 0x1F, 0x1F));
+    private static readonly SolidColorBrush ReasoningBrush = new(Color.FromRgb(0x8A, 0x8A, 0x8A));
 
     public ChatWindow()
     {
         InitializeComponent();
 
-        ModeCombo.Items.Add("回答问题");
-        ModeCombo.Items.Add("解释");
-        ModeCombo.Items.Add("翻译");
-        ModeCombo.Items.Add("润色");
-        ModeCombo.Items.Add("自定义");
-        ModeCombo.SelectedIndex = 0;
+        InputBox.PreviewMouseDown += (_, _) => _modePickerActive = false;
+        InputBox.GotKeyboardFocus += (_, _) => _modePickerActive = false;
 
         PreviewKeyDown += ChatWindow_PreviewKeyDown;
         Deactivated += ChatWindow_Deactivated;
@@ -60,8 +63,29 @@ public partial class ChatWindow : Window
             return;
         }
 
-        // Keyboard-first flow: when the mode selector has focus, Up/Down pick
-        // the action and Enter sends the message right away.
+        // Keyboard-first flow: while the mode picker is active, Up/Down switch
+        // the action and Enter sends right away.
+        if (_modePickerActive)
+        {
+            if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+                MoveMode(-1);
+            }
+            else if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+                MoveMode(1);
+            }
+            else if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                SendMessage();
+            }
+            return;
+        }
+
+        // Generic support when the mode combo itself has focus.
         if (ModeCombo.IsKeyboardFocusWithin && !ModeCombo.IsDropDownOpen)
         {
             if (e.Key == Key.Up)
@@ -90,6 +114,7 @@ public partial class ChatWindow : Window
     public async void PrepareForShow()
     {
         PositionNearCursor();
+        ReloadModes();
 
         // Fresh state on every open: clear the keyword from the last session.
         InputBox.Clear();
@@ -110,14 +135,16 @@ public partial class ChatWindow : Window
         if (hasSelection)
         {
             InputBox.Text = selected;
+            // Place the caret at the end for easy editing.
+            InputBox!.CaretIndex = InputBox!.Text.Length;
         }
 
         Activate();
 
         if (hasSelection && settings.AutoSendOnSelection)
         {
-            // Automatic flow: send immediately, then focus the input box.
-            HintText.Text = "Ctrl+Enter 发送 · Esc 隐藏";
+            HintText.Text = "Enter 发送 · Shift+Enter 换行 · Esc 隐藏";
+            _modePickerActive = false;
             SendMessage();
             InputBox.Focus();
             return;
@@ -126,13 +153,47 @@ public partial class ChatWindow : Window
         if (hasSelection)
         {
             // Keyboard-first flow: pick an action with Up/Down, Enter to send.
+            _modePickerActive = true;
             HintText.Text = "↑/↓ 选择操作 · 回车发送 · Esc 隐藏";
-            ModeCombo.Focus();
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (IsVisible && _modePickerActive)
+                {
+                    ModeCombo.Focus();
+                }
+            }));
             return;
         }
 
-        HintText.Text = "Ctrl+Enter 发送 · Esc 隐藏";
-        InputBox!.Focus();
+        _modePickerActive = false;
+        HintText.Text = "Enter 发送 · Shift+Enter 换行 · Esc 隐藏";
+        InputBox.Focus();
+    }
+
+    private void ReloadModes()
+    {
+        var current = ModeCombo.SelectedItem?.ToString() ?? "";
+        ModeCombo.Items.Clear();
+
+        var modes = SettingsService.Instance.Current.Modes;
+        foreach (var m in modes)
+        {
+            ModeCombo.Items.Add(m.Name);
+        }
+
+        int idx = 0;
+        if (!string.IsNullOrEmpty(current))
+        {
+            int found = ModeCombo.Items.IndexOf(current);
+            if (found >= 0)
+            {
+                idx = found;
+            }
+        }
+        if (ModeCombo.Items.Count > 0)
+        {
+            ModeCombo.SelectedIndex = Math.Min(idx, ModeCombo.Items.Count - 1);
+        }
     }
 
     private void PositionNearCursor()
@@ -205,7 +266,7 @@ public partial class ChatWindow : Window
 
         // Build the request messages: optional system prompt + full history.
         var history = new List<ChatMessage>();
-        var systemPrompt = BuildSystemPrompt(ModeCombo.SelectedIndex, settings.CustomPrompt);
+        var systemPrompt = BuildSystemPrompt(ModeCombo.SelectedIndex);
         if (!string.IsNullOrEmpty(systemPrompt))
         {
             history.Add(new ChatMessage("system", systemPrompt));
@@ -216,12 +277,24 @@ public partial class ChatWindow : Window
         _isGenerating = true;
         UpdateSendButton();
 
-        // Create the assistant bubble (updated incrementally as tokens arrive).
-        var aiText = new TextBlock
+        // Create the assistant bubble: reasoning block (grey, when enabled)
+        // above the final answer block.
+        var panel = new StackPanel();
+        _streamReasoningBlock = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = ReasoningBrush,
+            FontSize = 11,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        _streamTextBlock = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
             Foreground = TextDarkBrush
         };
+        panel.Children.Add(_streamReasoningBlock);
+        panel.Children.Add(_streamTextBlock);
+
         var aiBorder = new Border
         {
             Background = AiBubbleBrush,
@@ -230,11 +303,11 @@ public partial class ChatWindow : Window
             Margin = new Thickness(0, 4, 0, 4),
             MaxWidth = 380,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Child = aiText
+            Child = panel
         };
         MessagesPanel.Children.Add(aiBorder);
-        _streamTextBlock = aiText;
         _streamBuffer = new StringBuilder();
+        _streamReasoning = new StringBuilder();
         ScrollToBottom();
 
         var token = _cts.Token;
@@ -243,12 +316,13 @@ public partial class ChatWindow : Window
         {
             try
             {
-                await foreach (var chunk in _chat.StreamChatAsync(
+                await foreach (var delta in _chat.StreamChatAsync(
                     settings.BaseUrl, settings.ApiKey, settings.Model, settings.Temperature,
+                    settings.ThinkingEnabled, settings.ThinkingBudgetTokens,
                     snapshot, token))
                 {
-                    var c = chunk;
-                    Dispatcher.Invoke(() => AppendStreamChunk(c));
+                    var d = delta;
+                    Dispatcher.Invoke(() => AppendStreamChunk(d));
                 }
                 Dispatcher.Invoke(() => FinishStream(true));
             }
@@ -270,14 +344,16 @@ public partial class ChatWindow : Window
         });
     }
 
-    private void AppendStreamChunk(string chunk)
+    private void AppendStreamChunk(ChatDelta delta)
     {
-        if (_streamBuffer == null)
+        if (delta.Reasoning != null && _streamReasoning != null)
         {
-            return;
+            _streamReasoning.Append(delta.Reasoning);
         }
-
-        _streamBuffer.Append(chunk);
+        if (delta.Content != null && _streamBuffer != null)
+        {
+            _streamBuffer.Append(delta.Content);
+        }
 
         if (_streamTimer == null)
         {
@@ -289,12 +365,14 @@ public partial class ChatWindow : Window
 
     private void FlushStream()
     {
-        if (_streamBuffer == null || _streamTextBlock == null)
+        if (_streamReasoningBlock != null && _streamReasoning != null && _streamReasoning.Length > 0)
         {
-            return;
+            _streamReasoningBlock.Text = "💭 " + _streamReasoning;
         }
-
-        _streamTextBlock.Text = _streamBuffer.ToString();
+        if (_streamTextBlock != null && _streamBuffer != null)
+        {
+            _streamTextBlock.Text = _streamBuffer.ToString();
+        }
         ScrollToBottom();
     }
 
@@ -308,6 +386,7 @@ public partial class ChatWindow : Window
         FlushStream();
 
         var finalText = _streamBuffer?.ToString() ?? "";
+        var finalReasoning = _streamReasoning?.ToString() ?? "";
 
         if (success)
         {
@@ -335,8 +414,11 @@ public partial class ChatWindow : Window
             }
         }
 
+        _ = finalReasoning;
         _streamBuffer = null;
+        _streamReasoning = null;
         _streamTextBlock = null;
+        _streamReasoningBlock = null;
         _isGenerating = false;
         UpdateSendButton();
     }
@@ -348,7 +430,7 @@ public partial class ChatWindow : Window
 
     private void UpdateSendButton()
     {
-        SendButton.Content = _isGenerating ? "停止" : "发送 (Ctrl+Enter)";
+        SendButton.Content = _isGenerating ? "停止" : "发送";
     }
 
     private void AddMessage(string role, string content)
@@ -383,23 +465,25 @@ public partial class ChatWindow : Window
         StatusText.Text = message;
     }
 
-    private static string BuildSystemPrompt(int modeIndex, string customPrompt)
+    private static string BuildSystemPrompt(int modeIndex)
     {
-        return modeIndex switch
+        var modes = SettingsService.Instance.Current.Modes;
+        if (modeIndex >= 0 && modeIndex < modes.Count)
         {
-            0 => "你是一个乐于助人的 AI 助手。请用简体中文回答，回答尽量简洁、准确。",
-            1 => "请解释用户提供的内容，用简体中文回答，条理清晰，通俗易懂。",
-            2 => "请将用户提供的内容翻译成简体中文；如果原文已经是中文，则翻译成英文。只输出译文，不要额外说明。",
-            3 => "请润色用户提供的文字，使其更通顺、专业、简洁，保持原意，用简体中文输出。",
-            4 => customPrompt,
-            _ => "你是一个乐于助人的 AI 助手。"
-        };
+            return modes[modeIndex].Prompt ?? "";
+        }
+        return "";
     }
 
     private void InputBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+        if (e.Key == Key.Enter)
         {
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+            {
+                // Shift+Enter inserts a newline.
+                return;
+            }
             e.Handled = true;
             if (_isGenerating)
             {
