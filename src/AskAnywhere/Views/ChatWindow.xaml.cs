@@ -63,7 +63,7 @@ public partial class ChatWindow : Window
 
         // Keyboard-first flow: while the picker is active, Up/Down switch the
         // action and Enter sends right away (also when the input box has focus).
-        if (_modePickerActive)
+        if (_modePickerActive && !ModeCombo.IsDropDownOpen)
         {
             if (e.Key == Key.Up)
             {
@@ -75,8 +75,9 @@ public partial class ChatWindow : Window
                 e.Handled = true;
                 MoveMode(1);
             }
-            else if (e.Key == Key.Enter)
+            else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
             {
+                // Shift+Enter falls through to the input box and inserts a newline.
                 e.Handled = true;
                 if (_isGenerating)
                 {
@@ -157,17 +158,18 @@ public partial class ChatWindow : Window
         bool hasSelection = !string.IsNullOrWhiteSpace(selected);
         var settings = SettingsService.Instance.Current;
 
+        // The temporary reasoning toggle starts from the saved setting; it can
+        // be flipped for a single conversation without changing the setting.
+        TempThinkingCheck.IsChecked = settings.ThinkingEnabled;
+
         if (hasSelection)
         {
             InputBox.Text = selected;
-            _modePickerActive = true;
-            HintText.Text = "↑/↓ 切换功能 · 回车发送 · Esc 隐藏";
         }
-        else
-        {
-            _modePickerActive = false;
-            HintText.Text = "Enter 发送 · Shift+Enter 换行 · Esc 隐藏";
-        }
+
+        // Up/Down always switch the action (even while typing); Enter sends.
+        _modePickerActive = true;
+        HintText.Text = "↑/↓ 切换功能 · Enter 发送 · Esc 隐藏";
 
         Activate();
 
@@ -355,13 +357,14 @@ public partial class ChatWindow : Window
 
         var token = _cts.Token;
         var snapshot = new List<ChatMessage>(history);
+        bool useThinking = TempThinkingCheck.IsChecked == true;
         _ = Task.Run(async () =>
         {
             try
             {
                 await foreach (var delta in _chat.StreamChatAsync(
                     settings.BaseUrl, settings.ApiKey, settings.Model, settings.Temperature,
-                    settings.ThinkingEnabled, settings.ThinkingBudgetTokens, GetEffort(settings.ThinkingBudgetTokens),
+                    useThinking, settings.ThinkingBudgetTokens, GetEffort(settings.ThinkingBudgetTokens),
                     snapshot, token))
                 {
                     var d = delta;
@@ -539,13 +542,12 @@ public partial class ChatWindow : Window
         }
     }
 
-    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    private void HistoryButton_Click(object sender, RoutedEventArgs e)
     {
-        SaveCurrentSession();
-        _messages.Clear();
-        MessagesPanel.Children.Clear();
-        InputBox.Clear();
-        ShowStatus("");
+        if (Application.Current is App app)
+        {
+            app.ShowHistoryWindow();
+        }
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)

@@ -91,20 +91,20 @@ public sealed class ChatService
             ["temperature"] = temperature
         };
 
-        if (thinkingEnabled)
+        // DeepSeek-style APIs reason by default, so an explicit
+        // "disabled" must be sent to actually turn reasoning off.
+        // Other OpenAI-compatible providers usually ignore this block.
+        var thinking = new Dictionary<string, object?> { ["type"] = thinkingEnabled ? "enabled" : "disabled" };
+        if (thinkingEnabled && thinkingBudgetTokens > 0)
         {
-            var thinking = new Dictionary<string, object?> { ["type"] = "enabled" };
-            if (thinkingBudgetTokens > 0)
-            {
-                thinking["budget_tokens"] = thinkingBudgetTokens;
-            }
-            payload["thinking"] = thinking;
+            thinking["budget_tokens"] = thinkingBudgetTokens;
+        }
+        payload["thinking"] = thinking;
 
-            // DeepSeek V4 style effort control.
-            if (!string.IsNullOrEmpty(reasoningEffort))
-            {
-                payload["reasoning_effort"] = reasoningEffort;
-            }
+        // DeepSeek V4 style effort control.
+        if (thinkingEnabled && !string.IsNullOrEmpty(reasoningEffort))
+        {
+            payload["reasoning_effort"] = reasoningEffort;
         }
 
         req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");

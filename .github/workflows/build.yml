@@ -26,8 +26,10 @@ jobs:
       - name: Build
         run: dotnet build src/AskAnywhere/AskAnywhere.csproj -c Release --no-restore
 
-      - name: Publish single-file
-        run: dotnet publish src/AskAnywhere/AskAnywhere.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true -o publish
+      - name: Publish single-file (framework-dependent)
+        # .NET runtime is NOT bundled: the user installs the .NET 8 Desktop
+        # Runtime themselves, keeping the download small.
+        run: dotnet publish src/AskAnywhere/AskAnywhere.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

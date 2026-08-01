@@ -47,13 +47,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style x:Key="GhostButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#FFEDEDED"/>
-            <Setter Property="Foreground" Value="#FF1F1F1F"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
     </Window.Resources>
     <Border BorderBrush="#FFE0E0E0" BorderThickness="1">
         <Grid>
@@ -71,13 +64,16 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                         <Ellipse Width="10" Height="10" Fill="#FF2563EB" VerticalAlignment="Center"/>
                         <TextBlock Text="AskAnywhere" Margin="8,0,0,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Content="&#x2699;" Click="SettingsButton_Click" Style="{StaticResource IconButtonStyle}"/>
-                    <Button Grid.Column="2" Content="&#x2715;" Click="CloseButton_Click" Style="{StaticResource IconButtonStyle}"/>
+                    <Button Grid.Column="1" Content="历史" FontSize="11" Width="44" Click="HistoryButton_Click"
+                            Style="{StaticResource IconButtonStyle}"/>
+                    <Button Grid.Column="2" Content="&#x2699;" Click="SettingsButton_Click" Style="{StaticResource IconButtonStyle}"/>
+                    <Button Grid.Column="3" Content="&#x2715;" Click="CloseButton_Click" Style="{StaticResource IconButtonStyle}"/>
                 </Grid>
             </Border>
 
@@ -101,15 +97,13 @@
                              Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0"
                              CaretBrush="#FF1F1F1F" Padding="8,6" VerticalContentAlignment="Top"/>
                     <DockPanel Margin="0,6,0,0">
-                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                            <Button x:Name="ClearButton" Content="清空" Click="ClearButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>
-                            <Button x:Name="SettingsButton2" Content="设置" Click="SettingsButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>
-                            <TextBlock x:Name="HintText" Text="Enter 发送 · Shift+Enter 换行 · Esc 隐藏" VerticalAlignment="Center"
-                                       Foreground="#FF757575" FontSize="11"/>
-                        </StackPanel>
+                        <CheckBox x:Name="TempThinkingCheck" DockPanel.Dock="Left" Content="推理"
+                                  Foreground="#FF5A5A5A" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送"
                                 Click="SendButton_Click" Padding="14,6" Background="#FF1D4ED8"
                                 Foreground="White" BorderThickness="0"/>
+                        <TextBlock x:Name="HintText" Text="Enter 发送 · Shift+Enter 换行 · Esc 隐藏"
+                                   VerticalAlignment="Center" Foreground="#FF757575" FontSize="11"/>
                     </DockPanel>
                 </StackPanel>
             </Border>
