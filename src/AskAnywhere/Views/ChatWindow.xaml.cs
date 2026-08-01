@@ -133,7 +133,7 @@ public partial class ChatWindow : Window
 
         HintText.Text = "Ctrl+Enter 发送 · Esc 隐藏";
         InputBox.Focus();
-        InputBox.CaretIndex = InputBox.Text.Length;
+        InputBox!.CaretIndex = InputBox.Text.Length;
     }
 
     private void PositionNearCursor()
