@@ -84,6 +84,10 @@ GitHub Actions 会在每次 push 到 `main` 时自动构建并上传产物。
 | OpenAI | `https://api.openai.com/v1` |
 | Ollama（本地） | `http://127.0.0.1:11434/v1` |
 
+## 许可证
+
+本项目基于 **MIT License** 开源，详见 [LICENSE](LICENSE)。
+
 ## 路线图
 
 - [ ] Markdown 渲染（代码高亮）
