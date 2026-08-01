@@ -100,8 +100,7 @@
                         <CheckBox x:Name="TempThinkingCheck" DockPanel.Dock="Left" Content="推理"
                                   Foreground="#FF5A5A5A" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送"
-                                Click="SendButton_Click" Padding="14,6" Background="#FF1D4ED8"
-                                Foreground="White" BorderThickness="0"/>
+                                Click="SendButton_Click" Padding="14,6" Style="{StaticResource ButtonPrimary}"/>
                         <TextBlock x:Name="HintText" Text="Enter 发送 · Shift+Enter 换行 · Esc 隐藏"
                                    VerticalAlignment="Center" Foreground="#FF757575" FontSize="11"/>
                     </DockPanel>

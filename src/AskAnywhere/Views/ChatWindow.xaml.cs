@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using AskAnywhere;
 using AskAnywhere.Models;
@@ -350,6 +351,7 @@ public partial class ChatWindow : Window
             HorizontalAlignment = HorizontalAlignment.Left,
             Child = panel
         };
+        aiBorder.Effect = CreateBubbleShadow();
         MessagesPanel.Children.Add(aiBorder);
         _streamBuffer = new StringBuilder();
         _streamReasoning = new StringBuilder();
@@ -506,8 +508,20 @@ public partial class ChatWindow : Window
             HorizontalAlignment = role == "user" ? HorizontalAlignment.Right : HorizontalAlignment.Left,
             Child = tb
         };
+        border.Effect = CreateBubbleShadow();
         MessagesPanel.Children.Add(border);
         ScrollToBottom();
+    }
+
+    private static DropShadowEffect CreateBubbleShadow()
+    {
+        return new DropShadowEffect
+        {
+            BlurRadius = 8,
+            ShadowDepth = 1,
+            Opacity = 0.12,
+            Color = Colors.Black
+        };
     }
 
     private void ScrollToBottom()

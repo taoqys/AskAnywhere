@@ -16,8 +16,8 @@
 
         <DockPanel Grid.Column="0" Margin="0,0,10,0">
             <Button DockPanel.Dock="Top" Content="清空历史" Click="ClearHistoryButton_Click"
-                    Padding="10,4" Background="#FFEDEDED" Foreground="#FF1F1F1F"
-                    BorderThickness="0" HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                    Padding="10,4" Style="{StaticResource ButtonDefault}"
+                    HorizontalAlignment="Left" Margin="0,0,0,8"/>
             <TextBlock DockPanel.Dock="Top" Text="会话列表" Foreground="#FF5A5A5A" Margin="0,0,0,6"/>
             <ListBox x:Name="SessionList" SelectionChanged="SessionList_SelectionChanged"
                      Background="#FFFFFFFF" BorderBrush="#FFD0D0D0"/>
