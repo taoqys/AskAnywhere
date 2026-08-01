@@ -2,8 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AskAnywhere"
-        Width="460" Height="620"
-        MinWidth="360" MinHeight="420"
+        Width="480" Height="640"
+        MinWidth="380" MinHeight="440"
         WindowStyle="None"
         ResizeMode="CanResize"
         Topmost="True"
@@ -11,7 +11,7 @@
         WindowStartupLocation="Manual"
         Background="#FFFFFFFF"
         Foreground="#FF1F1F1F"
-        FontFamily="Microsoft YaHei UI, Segoe UI"
+        FontFamily="Segoe UI Variable Text, Microsoft YaHei UI, Segoe UI"
         FontSize="13">
     <!--
       WindowChrome removes the DWM non-client frame that shows as a thin white
@@ -26,7 +26,7 @@
     <Window.Resources>
         <Style x:Key="IconButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#FF444444"/>
+            <Setter Property="Foreground" Value="#FF4A4A4A"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Width" Value="36"/>
             <Setter Property="Height" Value="32"/>
@@ -35,12 +35,15 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#FFE5E5E5"/>
+                                <Setter TargetName="bd" Property="Background" Value="#FFE8EAED"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FFDDE0E5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -48,7 +51,8 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Border BorderBrush="#FFE0E0E0" BorderThickness="1">
+
+    <Border BorderBrush="#FFE4E6EB" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -57,7 +61,7 @@
             </Grid.RowDefinitions>
 
             <!-- Title bar -->
-            <Border Grid.Row="0" Background="#FFF5F5F5" BorderThickness="0,0,0,1" BorderBrush="#FFE0E0E0"
+            <Border Grid.Row="0" Height="40" Background="#FFF7F8FA" BorderThickness="0,0,0,1" BorderBrush="#FFE4E6EB"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -66,9 +70,9 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
                         <Ellipse Width="10" Height="10" Fill="#FF2563EB" VerticalAlignment="Center"/>
-                        <TextBlock Text="AskAnywhere" Margin="8,0,0,0" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Text="AskAnywhere" Margin="8,0,0,0" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13"/>
                     </StackPanel>
                     <Button Grid.Column="1" Content="历史" FontSize="11" Width="44" Click="HistoryButton_Click"
                             Style="{StaticResource IconButtonStyle}"/>
@@ -78,31 +82,45 @@
             </Border>
 
             <!-- Messages -->
-            <ScrollViewer Grid.Row="1" x:Name="MessagesScroll" VerticalScrollBarVisibility="Auto" Padding="10,8">
+            <ScrollViewer Grid.Row="1" x:Name="MessagesScroll" VerticalScrollBarVisibility="Auto" Padding="12,10" Background="#FFFFFFFF">
                 <StackPanel x:Name="MessagesPanel"/>
             </ScrollViewer>
 
             <!-- Input -->
-            <Border Grid.Row="2" Background="#FFFAFAFA" BorderThickness="0,1,0,0" BorderBrush="#FFE0E0E0">
-                <StackPanel Margin="10,8">
-                    <DockPanel Margin="0,0,0,6">
-                        <TextBlock Text="模式:" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                        <ComboBox x:Name="ModeCombo" Margin="8,0,0,0" Width="120" HorizontalAlignment="Left"
-                                  Background="#FFFFFFFF" Foreground="#FF1F1F1F"/>
-                        <TextBlock x:Name="StatusText" DockPanel.Dock="Right" VerticalAlignment="Center"
-                                   Foreground="#FF6B6B6B" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                    </DockPanel>
+            <Border Grid.Row="2" Background="#FFFAFAFC" BorderThickness="0,1,0,0" BorderBrush="#FFE4E6EB">
+                <StackPanel Margin="12,10,12,10">
+                    <!-- Mode + Model row -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="118"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="模式" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
+                        <ComboBox Grid.Column="1" x:Name="ModeCombo" Margin="8,0,14,0"/>
+                        <TextBlock Grid.Column="2" Text="模型" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
+                        <ComboBox Grid.Column="3" x:Name="ModelCombo" IsEditable="True" Margin="8,0,0,0"/>
+                    </Grid>
+
+                    <!-- Input box -->
                     <TextBox x:Name="InputBox" AcceptsReturn="True" TextWrapping="Wrap"
-                             MinHeight="60" MaxHeight="140" VerticalScrollBarVisibility="Auto"
-                             Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0"
-                             CaretBrush="#FF1F1F1F" Padding="8,6" VerticalContentAlignment="Top"/>
-                    <DockPanel Margin="0,6,0,0">
+                             MinHeight="64" MaxHeight="140" VerticalScrollBarVisibility="Auto"
+                             VerticalContentAlignment="Top" Padding="10,8"/>
+
+                    <!-- Bottom row -->
+                    <DockPanel Margin="0,8,0,0">
+                        <Button x:Name="FetchModelsButton" DockPanel.Dock="Left" Content="&#x27F3;" Width="30"
+                                Padding="0" Margin="0,0,8,0" Style="{StaticResource ButtonDefault}"
+                                Click="FetchModelsButton_Click" ToolTip="获取模型列表"/>
                         <CheckBox x:Name="TempThinkingCheck" DockPanel.Dock="Left" Content="推理"
-                                  Foreground="#FF5A5A5A" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                  VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送"
-                                Click="SendButton_Click" Padding="14,6" Style="{StaticResource ButtonPrimary}"/>
-                        <TextBlock x:Name="HintText" Text="Enter 发送 · Shift+Enter 换行 · Esc 隐藏"
-                                   VerticalAlignment="Center" Foreground="#FF757575" FontSize="11"/>
+                                Click="SendButton_Click" Padding="16,6" Style="{StaticResource ButtonPrimary}"/>
+                        <TextBlock x:Name="StatusText" DockPanel.Dock="Right" VerticalAlignment="Center"
+                                   Foreground="#FF6B6B6B" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="HintText" Text="↑/↓ 切换功能 · Enter 发送" VerticalAlignment="Center"
+                                   Foreground="#FF9A9A9A" FontSize="11"/>
                     </DockPanel>
                 </StackPanel>
             </Border>

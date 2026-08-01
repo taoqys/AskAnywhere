@@ -13,16 +13,16 @@
         <StackPanel Margin="20,16" MaxWidth="520">
             <TextBlock Text="API 配置" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,10"/>
             <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF5A5A5A"/>
-            <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F"/>
+            <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" />
             <TextBlock Text="API Key" Foreground="#FF5A5A5A"/>
-            <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F"/>
+            <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" />
             <DockPanel Margin="0,0,0,6">
                 <Button x:Name="ModelFetchButton" DockPanel.Dock="Right" Content="获取模型列表" Click="ModelFetchButton_Click"
                         Padding="10,4" Style="{StaticResource ButtonDefault}" Margin="8,0,0,0"/>
                 <TextBlock Text="模型（Model）" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
             </DockPanel>
             <ComboBox x:Name="ModelCombo" IsEditable="True" Margin="0,4,0,12" Padding="6,4"
-                      Background="#FFFFFFFF" Foreground="#FF1F1F1F"/>
+                      />
 
             <DockPanel Margin="0,0,0,6">
                 <TextBlock Text="Temperature:" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
@@ -32,23 +32,23 @@
             </DockPanel>
 
             <CheckBox x:Name="ThinkingCheck" Content="启用推理（DeepSeek 思考模式，思考内容会以灰色显示）"
-                      Foreground="#FF1F1F1F" Margin="0,4,0,6"/>
+                      Margin="0,4,0,6"/>
             <DockPanel Margin="0,0,0,14">
                 <TextBlock Text="推理强度：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
                 <ComboBox x:Name="ThinkingBudgetCombo" Width="140" HorizontalAlignment="Left"
-                          Background="#FFFFFFFF" Foreground="#FF1F1F1F"/>
+                          />
             </DockPanel>
 
             <TextBlock Text="行为" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-            <CheckBox x:Name="AutoSendCheck" Content="选中文字后自动发送（不勾选则用 ↑/↓ 选操作后回车发送）" Foreground="#FF1F1F1F" Margin="0,0,0,8"/>
-            <CheckBox x:Name="AutoHideCheck" Content="窗口失焦后自动隐藏" Foreground="#FF1F1F1F" Margin="0,0,0,8"/>
-            <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Foreground="#FF1F1F1F" Margin="0,0,0,14"/>
+            <CheckBox x:Name="AutoSendCheck" Content="选中文字后自动发送（不勾选则用 ↑/↓ 选操作后回车发送）" Margin="0,0,0,8"/>
+            <CheckBox x:Name="AutoHideCheck" Content="窗口失焦后自动隐藏" Margin="0,0,0,8"/>
+            <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Margin="0,0,0,14"/>
 
             <TextBlock Text="快捷键" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
             <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="触发键：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
                 <ComboBox x:Name="HotkeyKeyCombo" Width="120" HorizontalAlignment="Left"
-                          Background="#FFFFFFFF" Foreground="#FF1F1F1F"/>
+                          />
             </DockPanel>
             <TextBlock Text="连按该键两次唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF5A5A5A"/>
             <DockPanel Margin="0,4,0,14">
@@ -59,16 +59,16 @@
 
             <TextBlock Text="功能与提示词（每项都可编辑，包括内置）" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,8"/>
             <ListBox x:Name="ModesList" Height="96" SelectionChanged="ModesList_SelectionChanged"
-                     Background="#FFFFFFFF" BorderBrush="#FFD0D0D0"/>
+                     />
             <DockPanel Margin="0,8,0,4">
                 <TextBlock Text="名称：" VerticalAlignment="Center" Foreground="#FF5A5A5A" Width="40"/>
-                <TextBox x:Name="ModeNameBox" Padding="6,4" Background="#FFFFFFFF" Foreground="#FF1F1F1F"
-                         BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F" TextChanged="ModeNameBox_TextChanged"/>
+                <TextBox x:Name="ModeNameBox" Padding="6,4" 
+                         TextChanged="ModeNameBox_TextChanged"/>
             </DockPanel>
             <TextBlock Text="提示词（system prompt）：" Foreground="#FF5A5A5A"/>
             <TextBox x:Name="ModePromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="60" Margin="0,4,0,6"
-                     Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0"
-                     CaretBrush="#FF1F1F1F" Padding="6,4" TextChanged="ModePromptBox_TextChanged"/>
+                      
+                     Padding="6,4" TextChanged="ModePromptBox_TextChanged"/>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                 <Button Content="添加" Click="AddModeButton_Click" Padding="12,4" Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
                 <Button Content="删除所选" Click="RemoveModeButton_Click" Padding="12,4" Style="{StaticResource ButtonDefault}"/>

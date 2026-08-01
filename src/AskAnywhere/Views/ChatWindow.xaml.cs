@@ -44,6 +44,7 @@ public partial class ChatWindow : Window
         InitializeComponent();
         PreviewKeyDown += ChatWindow_PreviewKeyDown;
         Deactivated += ChatWindow_Deactivated;
+        ModelCombo.SelectionChanged += (_, _) => SaveModelSelection();
     }
 
     private void ChatWindow_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -143,6 +144,7 @@ public partial class ChatWindow : Window
     {
         PositionNearCursor();
         ReloadModes();
+        ReloadModel();
 
         InputBox.Clear();
 
@@ -209,6 +211,64 @@ public partial class ChatWindow : Window
         if (ModeCombo.Items.Count > 0)
         {
             ModeCombo.SelectedIndex = Math.Min(idx, ModeCombo.Items.Count - 1);
+        }
+    }
+
+    private void ReloadModel()
+    {
+        var s = SettingsService.Instance.Current;
+        if (!string.IsNullOrEmpty(s.Model) && ModelCombo.Items.IndexOf(s.Model) < 0)
+        {
+            ModelCombo.Items.Add(s.Model);
+        }
+        ModelCombo.Text = s.Model;
+    }
+
+    /// <summary>Persists the selected model to the settings.</summary>
+    private void SaveModelSelection(string? model = null)
+    {
+        var s = SettingsService.Instance;
+        var m = (model ?? ModelCombo.Text)?.Trim();
+        if (!string.IsNullOrEmpty(m) && s.Current.Model != m)
+        {
+            s.Update(settings => settings.Model = m, out _);
+        }
+    }
+
+    private async void FetchModelsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var s = SettingsService.Instance.Current;
+        if (string.IsNullOrEmpty(s.BaseUrl) || string.IsNullOrEmpty(s.ApiKey))
+        {
+            ShowStatus("请先在设置中填写 Base URL 和 API Key");
+            return;
+        }
+
+        try
+        {
+            FetchModelsButton.IsEnabled = false;
+            var models = await _chat.GetModelsAsync(s.BaseUrl, s.ApiKey, CancellationToken.None);
+
+            var current = ModelCombo.Text;
+            ModelCombo.Items.Clear();
+            foreach (var m in models)
+            {
+                ModelCombo.Items.Add(m);
+            }
+            ModelCombo.Text = !string.IsNullOrEmpty(current) && models.Contains(current)
+                ? current
+                : (models.Count > 0 ? models[0] : current);
+
+            SaveModelSelection();
+            ShowStatus("获取到 " + models.Count + " 个模型");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus("获取模型失败: " + ex.Message);
+        }
+        finally
+        {
+            FetchModelsButton.IsEnabled = true;
         }
     }
 
@@ -306,6 +366,13 @@ public partial class ChatWindow : Window
             return;
         }
 
+        var model = ModelCombo.Text?.Trim();
+        if (string.IsNullOrEmpty(model))
+        {
+            model = settings.Model;
+        }
+        SaveModelSelection(model);
+
         InputBox.Clear();
         AddMessage("user", text);
         _messages.Add(new ChatMessage("user", text));
@@ -344,7 +411,7 @@ public partial class ChatWindow : Window
         var aiBorder = new Border
         {
             Background = AiBubbleBrush,
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(12),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 4, 0, 4),
             MaxWidth = 380,
@@ -365,7 +432,7 @@ public partial class ChatWindow : Window
             try
             {
                 await foreach (var delta in _chat.StreamChatAsync(
-                    settings.BaseUrl, settings.ApiKey, settings.Model, settings.Temperature,
+                    settings.BaseUrl, settings.ApiKey, model, settings.Temperature,
                     useThinking, settings.ThinkingBudgetTokens, GetEffort(settings.ThinkingBudgetTokens),
                     snapshot, token))
                 {
@@ -501,7 +568,7 @@ public partial class ChatWindow : Window
         var border = new Border
         {
             Background = role == "user" ? UserBubbleBrush : AiBubbleBrush,
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(12),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(0, 4, 0, 4),
             MaxWidth = 380,

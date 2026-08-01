@@ -20,10 +20,10 @@
                     HorizontalAlignment="Left" Margin="0,0,0,8"/>
             <TextBlock DockPanel.Dock="Top" Text="会话列表" Foreground="#FF5A5A5A" Margin="0,0,0,6"/>
             <ListBox x:Name="SessionList" SelectionChanged="SessionList_SelectionChanged"
-                     Background="#FFFFFFFF" BorderBrush="#FFD0D0D0"/>
+                     />
         </DockPanel>
 
-        <Border Grid.Column="1" BorderBrush="#FFD0D0D0" BorderThickness="1" Background="#FFFAFAFA">
+        <Border Grid.Column="1" BorderBrush="#FFD0D0D0" BorderThickness="1" >
             <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
                 <StackPanel x:Name="DetailPanel"/>
             </ScrollViewer>
