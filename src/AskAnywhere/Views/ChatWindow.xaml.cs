@@ -136,7 +136,7 @@ public partial class ChatWindow : Window
         {
             InputBox.Text = selected;
             // Place the caret at the end for easy editing.
-            InputBox!.CaretIndex = InputBox!.Text.Length;
+            InputBox!.CaretIndex = InputBox!.Text?.Length ?? 0;
         }
 
         Activate();
@@ -155,7 +155,7 @@ public partial class ChatWindow : Window
             // Keyboard-first flow: pick an action with Up/Down, Enter to send.
             _modePickerActive = true;
             HintText.Text = "↑/↓ 选择操作 · 回车发送 · Esc 隐藏";
-            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
             {
                 if (IsVisible && _modePickerActive)
                 {
