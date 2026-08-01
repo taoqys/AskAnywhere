@@ -3,10 +3,11 @@ name: build
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -31,9 +32,20 @@ jobs:
         # Runtime themselves, keeping the download small.
         run: dotnet publish src/AskAnywhere/AskAnywhere.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 
+      - name: Create release archive
+        shell: pwsh
+        run: Compress-Archive -Path publish/* -DestinationPath AskAnywhere-win-x64.zip
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: AskAnywhere-win-x64
           path: publish/
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        # Only for version tags (v0.2.0, v1.0.0, ...)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" AskAnywhere-win-x64.zip --title "AskAnywhere ${{ github.ref_name }}" --generate-notes
