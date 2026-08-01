@@ -55,6 +55,26 @@ public sealed class TrayIconService : IDisposable
 
     private static Icon CreateAppIcon()
     {
+        // Prefer the packaged app icon (Assets/app.ico).
+        try
+        {
+            var uri = new Uri("pack://application:,,,/Assets/app.ico", UriKind.Absolute);
+            var stream = System.Windows.Application.GetResourceStream(uri)?.Stream;
+            if (stream != null)
+            {
+                using (stream)
+                using (var icon = new Icon(stream))
+                {
+                    // Clone so the returned icon stays valid after the stream closes.
+                    return (Icon)icon.Clone();
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to the generated icon below.
+        }
+
         using var bmp = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bmp))
         {
