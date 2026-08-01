@@ -19,6 +19,7 @@ public partial class App : Application
     private TrayIconService? _tray;
     private ChatWindow? _chatWindow;
     private SettingsWindow? _settingsWindow;
+    private HistoryWindow? _historyWindow;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -68,6 +69,7 @@ public partial class App : Application
         _tray.DoubleClicked += ToggleChatWindow;
         _tray.OpenRequested += ShowChatWindow;
         _tray.SettingsRequested += ShowSettingsWindow;
+        _tray.HistoryRequested += ShowHistoryWindow;
         _tray.ExitRequested += ShutdownApp;
 
         _keyboardHook = new KeyboardHookService(ParseHotkeyKey(settings.HotkeyKey), settings.HotkeyIntervalMs);
@@ -77,6 +79,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _chatWindow?.SaveCurrentSession();
         _keyboardHook?.Dispose();
         _tray?.Dispose();
 
@@ -131,7 +134,7 @@ public partial class App : Application
 
         if (_chatWindow.IsVisible && _chatWindow.IsActive)
         {
-            _chatWindow.Hide();
+            _chatWindow.HideChatWindow();
         }
         else
         {
@@ -174,6 +177,18 @@ public partial class App : Application
 
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    public void ShowHistoryWindow()
+    {
+        if (_historyWindow == null)
+        {
+            _historyWindow = new HistoryWindow();
+            _historyWindow.Closed += (_, _) => _historyWindow = null;
+        }
+
+        _historyWindow.Show();
+        _historyWindow.Activate();
     }
 
     public void ApplySettings()

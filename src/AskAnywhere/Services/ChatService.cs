@@ -71,6 +71,7 @@ public sealed class ChatService
         double temperature,
         bool thinkingEnabled,
         int thinkingBudgetTokens,
+        string? reasoningEffort,
         IReadOnlyList<ChatMessage> messages,
         [EnumeratorCancellation] CancellationToken ct)
     {
@@ -98,6 +99,12 @@ public sealed class ChatService
                 thinking["budget_tokens"] = thinkingBudgetTokens;
             }
             payload["thinking"] = thinking;
+
+            // DeepSeek V4 style effort control.
+            if (!string.IsNullOrEmpty(reasoningEffort))
+            {
+                payload["reasoning_effort"] = reasoningEffort;
+            }
         }
 
         req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");

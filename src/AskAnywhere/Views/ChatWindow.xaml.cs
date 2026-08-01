@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AskAnywhere;
+using AskAnywhere.Models;
 using AskAnywhere.Services;
 
 namespace AskAnywhere.Views;
@@ -27,8 +28,9 @@ public partial class ChatWindow : Window
     private DispatcherTimer? _streamTimer;
     private DispatcherTimer? _deactivateTimer;
 
-    // True while the "pick an action with Up/Down" flow is active (right after
-    // the window opens with a selection). Editing the input box disables it.
+    // While true, Up/Down switch the chat action and Enter sends, no matter
+    // which control has keyboard focus. It stays active for the whole time the
+    // window is open, so the user can type and switch actions freely.
     private bool _modePickerActive;
 
     private static readonly SolidColorBrush UserBubbleBrush = new(Color.FromRgb(0x1D, 0x4E, 0xD8));
@@ -39,10 +41,6 @@ public partial class ChatWindow : Window
     public ChatWindow()
     {
         InitializeComponent();
-
-        InputBox.PreviewMouseDown += (_, _) => _modePickerActive = false;
-        InputBox.GotKeyboardFocus += (_, _) => _modePickerActive = false;
-
         PreviewKeyDown += ChatWindow_PreviewKeyDown;
         Deactivated += ChatWindow_Deactivated;
     }
@@ -58,13 +56,13 @@ public partial class ChatWindow : Window
             }
             else
             {
-                Hide();
+                HideChatWindow();
             }
             return;
         }
 
-        // Keyboard-first flow: while the mode picker is active, Up/Down switch
-        // the action and Enter sends right away.
+        // Keyboard-first flow: while the picker is active, Up/Down switch the
+        // action and Enter sends right away (also when the input box has focus).
         if (_modePickerActive)
         {
             if (e.Key == Key.Up)
@@ -80,6 +78,34 @@ public partial class ChatWindow : Window
             else if (e.Key == Key.Enter)
             {
                 e.Handled = true;
+                if (_isGenerating)
+                {
+                    StopGeneration();
+                }
+                else
+                {
+                    SendMessage();
+                }
+            }
+            return;
+        }
+
+        // Enter sends from the input box. Must be intercepted here (Preview)
+        // because the TextBox swallows Enter internally in the bubbling phase.
+        if (e.Key == Key.Enter && InputBox.IsKeyboardFocusWithin)
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+            {
+                // Shift+Enter inserts a newline.
+                return;
+            }
+            e.Handled = true;
+            if (_isGenerating)
+            {
+                StopGeneration();
+            }
+            else
+            {
                 SendMessage();
             }
             return;
@@ -108,15 +134,14 @@ public partial class ChatWindow : Window
 
     /// <summary>
     /// Called right before/after the window is shown. Positions the window near
-    /// the cursor, clears the previous keyword, captures any new selected text,
-    /// and focuses the right control for the current flow.
+    /// the cursor, captures any new selected text, and focuses the input box.
+    /// The conversation was already cleared when the window was hidden.
     /// </summary>
     public async void PrepareForShow()
     {
         PositionNearCursor();
         ReloadModes();
 
-        // Fresh state on every open: clear the keyword from the last session.
         InputBox.Clear();
 
         string? selected = null;
@@ -135,39 +160,27 @@ public partial class ChatWindow : Window
         if (hasSelection)
         {
             InputBox.Text = selected;
-            // Place the caret at the end for easy editing.
-            InputBox!.CaretIndex = InputBox!.Text?.Length ?? 0;
+            _modePickerActive = true;
+            HintText.Text = "↑/↓ 切换功能 · 回车发送 · Esc 隐藏";
+        }
+        else
+        {
+            _modePickerActive = false;
+            HintText.Text = "Enter 发送 · Shift+Enter 换行 · Esc 隐藏";
         }
 
         Activate();
 
         if (hasSelection && settings.AutoSendOnSelection)
         {
-            HintText.Text = "Enter 发送 · Shift+Enter 换行 · Esc 隐藏";
-            _modePickerActive = false;
             SendMessage();
-            InputBox.Focus();
             return;
         }
 
-        if (hasSelection)
-        {
-            // Keyboard-first flow: pick an action with Up/Down, Enter to send.
-            _modePickerActive = true;
-            HintText.Text = "↑/↓ 选择操作 · 回车发送 · Esc 隐藏";
-            _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-            {
-                if (IsVisible && _modePickerActive)
-                {
-                    ModeCombo.Focus();
-                }
-            }));
-            return;
-        }
-
-        _modePickerActive = false;
-        HintText.Text = "Enter 发送 · Shift+Enter 换行 · Esc 隐藏";
+        // The input box gets focus so the user can type right away; Up/Down
+        // still switch the action because _modePickerActive stays true.
         InputBox.Focus();
+        InputBox!.CaretIndex = InputBox!.Text?.Length ?? 0;
     }
 
     private void ReloadModes()
@@ -238,6 +251,36 @@ public partial class ChatWindow : Window
         }
         idx = (idx + delta + count) % count;
         ModeCombo.SelectedIndex = idx;
+    }
+
+    /// <summary>Persists the current conversation to history (no-op when empty).</summary>
+    public void SaveCurrentSession()
+    {
+        if (_messages.Count == 0)
+        {
+            return;
+        }
+        var session = new ChatSession
+        {
+            CreatedAt = DateTime.Now,
+            Messages = new List<ChatMessage>(_messages)
+        };
+        HistoryService.Add(session);
+    }
+
+    /// <summary>
+    /// Saves the current conversation to history, resets the conversation and
+    /// hides the window. Re-opening always starts a brand new conversation.
+    /// </summary>
+    public void HideChatWindow()
+    {
+        SaveCurrentSession();
+        _messages.Clear();
+        MessagesPanel.Children.Clear();
+        InputBox.Clear();
+        _modePickerActive = false;
+        ShowStatus("");
+        Hide();
     }
 
     private void SendMessage()
@@ -318,7 +361,7 @@ public partial class ChatWindow : Window
             {
                 await foreach (var delta in _chat.StreamChatAsync(
                     settings.BaseUrl, settings.ApiKey, settings.Model, settings.Temperature,
-                    settings.ThinkingEnabled, settings.ThinkingBudgetTokens,
+                    settings.ThinkingEnabled, settings.ThinkingBudgetTokens, GetEffort(settings.ThinkingBudgetTokens),
                     snapshot, token))
                 {
                     var d = delta;
@@ -342,6 +385,17 @@ public partial class ChatWindow : Window
                 }
             }
         });
+    }
+
+    private static string? GetEffort(int budgetTokens)
+    {
+        return budgetTokens switch
+        {
+            > 6000 => "high",
+            > 3000 => "medium",
+            > 0 => "low",
+            _ => null
+        };
     }
 
     private void AppendStreamChunk(ChatDelta delta)
@@ -386,7 +440,6 @@ public partial class ChatWindow : Window
         FlushStream();
 
         var finalText = _streamBuffer?.ToString() ?? "";
-        var finalReasoning = _streamReasoning?.ToString() ?? "";
 
         if (success)
         {
@@ -414,7 +467,6 @@ public partial class ChatWindow : Window
             }
         }
 
-        _ = finalReasoning;
         _streamBuffer = null;
         _streamReasoning = null;
         _streamTextBlock = null;
@@ -475,27 +527,6 @@ public partial class ChatWindow : Window
         return "";
     }
 
-    private void InputBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-            {
-                // Shift+Enter inserts a newline.
-                return;
-            }
-            e.Handled = true;
-            if (_isGenerating)
-            {
-                StopGeneration();
-            }
-            else
-            {
-                SendMessage();
-            }
-        }
-    }
-
     private void SendButton_Click(object sender, RoutedEventArgs e)
     {
         if (_isGenerating)
@@ -510,6 +541,7 @@ public partial class ChatWindow : Window
 
     private void ClearButton_Click(object sender, RoutedEventArgs e)
     {
+        SaveCurrentSession();
         _messages.Clear();
         MessagesPanel.Children.Clear();
         InputBox.Clear();
@@ -530,7 +562,7 @@ public partial class ChatWindow : Window
         {
             StopGeneration();
         }
-        Hide();
+        HideChatWindow();
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -571,7 +603,7 @@ public partial class ChatWindow : Window
             return;
         }
 
-        Hide();
+        HideChatWindow();
     }
 
     private static bool AnyAppWindowActive()

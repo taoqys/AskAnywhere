@@ -99,8 +99,7 @@
                     <TextBox x:Name="InputBox" AcceptsReturn="True" TextWrapping="Wrap"
                              MinHeight="60" MaxHeight="140" VerticalScrollBarVisibility="Auto"
                              Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0"
-                             CaretBrush="#FF1F1F1F" Padding="8,6" VerticalContentAlignment="Top"
-                             KeyDown="InputBox_KeyDown"/>
+                             CaretBrush="#FF1F1F1F" Padding="8,6" VerticalContentAlignment="Top"/>
                     <DockPanel Margin="0,6,0,0">
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                             <Button x:Name="ClearButton" Content="清空" Click="ClearButton_Click" Margin="0,0,8,0" Style="{StaticResource GhostButtonStyle}"/>

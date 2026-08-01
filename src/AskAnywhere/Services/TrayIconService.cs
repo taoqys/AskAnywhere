@@ -12,6 +12,7 @@ public sealed class TrayIconService : IDisposable
 
     public event Action? DoubleClicked;
     public event Action? OpenRequested;
+    public event Action? HistoryRequested;
     public event Action? SettingsRequested;
     public event Action? ExitRequested;
 
@@ -28,6 +29,10 @@ public sealed class TrayIconService : IDisposable
         var openItem = new ToolStripMenuItem("打开 AskAnywhere");
         openItem.Click += (_, _) => OpenRequested?.Invoke();
         menu.Items.Add(openItem);
+
+        var historyItem = new ToolStripMenuItem("历史记录");
+        historyItem.Click += (_, _) => HistoryRequested?.Invoke();
+        menu.Items.Add(historyItem);
 
         var settingsItem = new ToolStripMenuItem("设置");
         settingsItem.Click += (_, _) => SettingsRequested?.Invoke();
