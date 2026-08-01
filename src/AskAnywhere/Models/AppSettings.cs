@@ -8,7 +8,13 @@ public sealed class AppSettings
     public double Temperature { get; set; } = 0.7;
     public bool AutoSendOnSelection { get; set; } = false;
     public bool AutoHideOnDeactivate { get; set; } = true;
-    public int DoubleCtrlThresholdMs { get; set; } = 300;
+
+    /// <summary>Trigger key for the double-tap hotkey: Disabled | Ctrl | Shift | Alt.</summary>
+    public string HotkeyKey { get; set; } = "Shift";
+
+    /// <summary>Max interval between the two taps, in milliseconds.</summary>
+    public int HotkeyIntervalMs { get; set; } = 300;
+
     public bool AutoStart { get; set; } = false;
     public string CustomPrompt { get; set; } = "";
 }

@@ -5,7 +5,7 @@
         Width="460" Height="620"
         MinWidth="360" MinHeight="420"
         WindowStyle="None"
-        ResizeMode="CanResizeWithGrip"
+        ResizeMode="CanResize"
         Topmost="True"
         ShowInTaskbar="True"
         WindowStartupLocation="Manual"
@@ -13,6 +13,16 @@
         Foreground="#FF1F1F1F"
         FontFamily="Microsoft YaHei UI, Segoe UI"
         FontSize="13">
+    <!--
+      WindowChrome removes the DWM non-client frame that shows as a thin white
+      strip on top of borderless windows. CaptionHeight=0 disables the system
+      caption; edge resizing is still provided by ResizeBorderThickness.
+    -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
     <Window.Resources>
         <Style x:Key="IconButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>

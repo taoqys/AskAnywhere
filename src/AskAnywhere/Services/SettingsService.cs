@@ -29,12 +29,18 @@ public sealed class SettingsService
         get { lock (_lock) return _settings; }
     }
 
-    public void Update(Action<AppSettings> change)
+    public string FilePath => _filePath;
+
+    /// <summary>
+    /// Applies <paramref name="change"/> to the in-memory settings and writes
+    /// them to disk. Returns false (with the error message) when saving fails.
+    /// </summary>
+    public bool Update(Action<AppSettings> change, out string? error)
     {
         lock (_lock)
         {
             change(_settings);
-            Save();
+            return Save(out error);
         }
     }
 
@@ -60,8 +66,9 @@ public sealed class SettingsService
         return new AppSettings();
     }
 
-    private void Save()
+    private bool Save(out string? error)
     {
+        error = null;
         try
         {
             var copy = new AppSettings
@@ -72,16 +79,19 @@ public sealed class SettingsService
                 Temperature = _settings.Temperature,
                 AutoSendOnSelection = _settings.AutoSendOnSelection,
                 AutoHideOnDeactivate = _settings.AutoHideOnDeactivate,
-                DoubleCtrlThresholdMs = _settings.DoubleCtrlThresholdMs,
+                HotkeyKey = _settings.HotkeyKey,
+                HotkeyIntervalMs = _settings.HotkeyIntervalMs,
                 AutoStart = _settings.AutoStart,
                 CustomPrompt = _settings.CustomPrompt
             };
             var json = JsonSerializer.Serialize(copy, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_filePath, json);
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore save failures so the app keeps running.
+            error = ex.Message;
+            return false;
         }
     }
 

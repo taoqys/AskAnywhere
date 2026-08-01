@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AskAnywhere 设置"
-        Width="540" Height="600"
+        Width="540" Height="640"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="#FFFFFFFF"
@@ -30,7 +30,12 @@
         <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Foreground="#FF1F1F1F" Margin="0,0,0,12"/>
 
         <TextBlock Text="快捷键" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-        <TextBlock Text="双击 Ctrl 唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF5A5A5A"/>
+        <DockPanel Margin="0,0,0,4">
+            <TextBlock Text="触发键：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+            <ComboBox x:Name="HotkeyKeyCombo" Width="120" HorizontalAlignment="Left"
+                      Background="#FFFFFFFF" Foreground="#FF1F1F1F"/>
+        </DockPanel>
+        <TextBlock Text="连按该键两次唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF5A5A5A"/>
         <DockPanel Margin="0,4,0,4">
             <TextBlock x:Name="ThresholdValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
             <Slider x:Name="ThresholdSlider" Minimum="100" Maximum="800" TickFrequency="50" IsSnapToTickEnabled="True"
@@ -38,10 +43,13 @@
         </DockPanel>
 
         <TextBlock Text="自定义 Prompt（模式选「自定义」时生效）" FontWeight="SemiBold" FontSize="15" Margin="0,14,0,6"/>
-        <TextBox x:Name="CustomPromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="70"
+        <TextBox x:Name="CustomPromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="60"
                  Background="#FFFFFFFF" Foreground="#FF1F1F1F" BorderBrush="#FFD0D0D0" CaretBrush="#FF1F1F1F" Padding="6,4"/>
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+        <TextBlock x:Name="SaveStatusText" Foreground="#FF1D8A4F" FontSize="11" Margin="0,10,0,0"
+                   TextWrapping="Wrap" MaxHeight="32"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button Content="保存" Click="SaveButton_Click" Padding="20,6" Background="#FF1D4ED8"
                     Foreground="White" BorderThickness="0" Margin="0,0,10,0"/>
             <Button Content="取消" Click="CancelButton_Click" Padding="20,6" Background="#FFEDEDED"

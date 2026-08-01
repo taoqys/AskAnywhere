@@ -70,9 +70,9 @@ public partial class App : Application
         _tray.SettingsRequested += ShowSettingsWindow;
         _tray.ExitRequested += ShutdownApp;
 
-        _keyboardHook = new KeyboardHookService(settings.DoubleCtrlThresholdMs);
-        _keyboardHook.DoubleCtrlPressed += ToggleChatWindow;
-        _keyboardHook.Start();
+        _keyboardHook = new KeyboardHookService(ParseHotkeyKey(settings.HotkeyKey), settings.HotkeyIntervalMs);
+        _keyboardHook.DoubleTapPressed += ToggleChatWindow;
+        ApplyHotkey();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -179,11 +179,40 @@ public partial class App : Application
     public void ApplySettings()
     {
         var s = SettingsService.Instance.Current;
-        if (_keyboardHook != null)
-        {
-            _keyboardHook.ThresholdMs = s.DoubleCtrlThresholdMs;
-        }
+        ApplyHotkey();
         AutoStartService.SetEnabled(s.AutoStart);
+    }
+
+    private void ApplyHotkey()
+    {
+        var s = SettingsService.Instance.Current;
+        if (_keyboardHook == null)
+        {
+            return;
+        }
+
+        _keyboardHook.SetKey(ParseHotkeyKey(s.HotkeyKey));
+        _keyboardHook.ThresholdMs = s.HotkeyIntervalMs;
+
+        if (ParseHotkeyKey(s.HotkeyKey) == HotkeyKey.Disabled)
+        {
+            _keyboardHook.Stop();
+        }
+        else
+        {
+            _keyboardHook.Start();
+        }
+    }
+
+    private static HotkeyKey ParseHotkeyKey(string? value)
+    {
+        return value?.Trim() switch
+        {
+            "Ctrl" => HotkeyKey.Ctrl,
+            "Alt" => HotkeyKey.Alt,
+            "Disabled" => HotkeyKey.Disabled,
+            _ => HotkeyKey.Shift
+        };
     }
 
     private void ShutdownApp()

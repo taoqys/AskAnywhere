@@ -4,10 +4,20 @@ using System.Runtime.InteropServices;
 
 namespace AskAnywhere.Services;
 
+public enum HotkeyKey
+{
+    Disabled,
+    Ctrl,
+    Shift,
+    Alt
+}
+
 /// <summary>
-/// Detects a quick double-press of Ctrl using a low-level keyboard hook.
-/// A "tap" counts only when Ctrl is pressed and released without any other key
-/// being pressed in between (so Ctrl+C / Ctrl+V combinations never trigger it).
+/// Detects a quick double-press of the configured key (Ctrl / Shift / Alt)
+/// using a low-level keyboard hook.
+/// A "tap" counts only when the key is pressed and released without any other
+/// key being pressed in between (so shortcuts like Ctrl+C or Shift+A never
+/// trigger it).
 /// </summary>
 public sealed class KeyboardHookService : IDisposable
 {
@@ -16,8 +26,13 @@ public sealed class KeyboardHookService : IDisposable
     private const int WM_KEYUP = 0x0101;
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
+
+    private const uint VK_LSHIFT = 0xA0;
+    private const uint VK_RSHIFT = 0xA1;
     private const uint VK_LCONTROL = 0xA2;
     private const uint VK_RCONTROL = 0xA3;
+    private const uint VK_LMENU = 0xA4;
+    private const uint VK_RMENU = 0xA5;
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -47,6 +62,9 @@ public sealed class KeyboardHookService : IDisposable
     private readonly object _lock = new();
     private IntPtr _hookHandle = IntPtr.Zero;
 
+    private uint _keyCode1;
+    private uint _keyCode2;
+
     private bool _ctrlDown;
     private long _ctrlDownTicks;
     private bool _otherKeyDuringCtrlDown;
@@ -55,19 +73,43 @@ public sealed class KeyboardHookService : IDisposable
 
     public int ThresholdMs { get; set; }
 
-    public event Action? DoubleCtrlPressed;
+    public event Action? DoubleTapPressed;
 
-    public KeyboardHookService(int thresholdMs)
+    public KeyboardHookService(HotkeyKey key, int thresholdMs)
     {
         ThresholdMs = thresholdMs;
         _proc = HookCallback;
+        SetKey(key);
+    }
+
+    public void SetKey(HotkeyKey key)
+    {
+        switch (key)
+        {
+            case HotkeyKey.Ctrl:
+                _keyCode1 = VK_LCONTROL;
+                _keyCode2 = VK_RCONTROL;
+                break;
+            case HotkeyKey.Shift:
+                _keyCode1 = VK_LSHIFT;
+                _keyCode2 = VK_RSHIFT;
+                break;
+            case HotkeyKey.Alt:
+                _keyCode1 = VK_LMENU;
+                _keyCode2 = VK_RMENU;
+                break;
+            default:
+                _keyCode1 = 0;
+                _keyCode2 = 0;
+                break;
+        }
     }
 
     public void Start()
     {
         lock (_lock)
         {
-            if (_hookHandle != IntPtr.Zero)
+            if (_hookHandle != IntPtr.Zero || _keyCode1 == 0)
             {
                 return;
             }
@@ -75,9 +117,24 @@ public sealed class KeyboardHookService : IDisposable
             _hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(null), 0);
             if (_hookHandle == IntPtr.Zero)
             {
-                // The hook failed (rare); double-Ctrl will simply be unavailable.
+                // The hook failed (rare); the hotkey will simply be unavailable.
                 _hookHandle = IntPtr.Zero;
             }
+        }
+    }
+
+    public void Stop()
+    {
+        lock (_lock)
+        {
+            if (_hookHandle != IntPtr.Zero)
+            {
+                UnhookWindowsHookEx(_hookHandle);
+                _hookHandle = IntPtr.Zero;
+            }
+            _ctrlDown = false;
+            _lastTapDownTicks = 0;
+            _doubleCandidate = false;
         }
     }
 
@@ -85,15 +142,15 @@ public sealed class KeyboardHookService : IDisposable
     {
         try
         {
-            if (nCode >= 0)
+            if (nCode >= 0 && _keyCode1 != 0)
             {
                 int msg = wParam.ToInt32();
                 if (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN || msg == WM_KEYUP || msg == WM_SYSKEYUP)
                 {
                     var data = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-                    bool isCtrl = data.vkCode == VK_LCONTROL || data.vkCode == VK_RCONTROL;
+                    bool isTarget = data.vkCode == _keyCode1 || data.vkCode == _keyCode2;
 
-                    if (isCtrl)
+                    if (isTarget)
                     {
                         bool isDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
                         if (isDown)
@@ -121,7 +178,7 @@ public sealed class KeyboardHookService : IDisposable
                                 _ctrlDown = false;
                                 if (_otherKeyDuringCtrlDown)
                                 {
-                                    // This was part of a shortcut like Ctrl+C; not a tap.
+                                    // This was part of a shortcut; not a tap.
                                     _lastTapDownTicks = 0;
                                     _doubleCandidate = false;
                                 }
@@ -129,7 +186,7 @@ public sealed class KeyboardHookService : IDisposable
                                 {
                                     _lastTapDownTicks = 0;
                                     _doubleCandidate = false;
-                                    DoubleCtrlPressed?.Invoke();
+                                    DoubleTapPressed?.Invoke();
                                 }
                                 else
                                 {
@@ -160,13 +217,6 @@ public sealed class KeyboardHookService : IDisposable
 
     public void Dispose()
     {
-        lock (_lock)
-        {
-            if (_hookHandle != IntPtr.Zero)
-            {
-                UnhookWindowsHookEx(_hookHandle);
-                _hookHandle = IntPtr.Zero;
-            }
-        }
+        Stop();
     }
 }
