@@ -1,12 +1,24 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AskAnywhere.Models;
 
 public sealed class AppSettings
 {
+    /// <summary>Legacy single-provider fields, kept for migration only.</summary>
     public string BaseUrl { get; set; } = "https://api.openai.com/v1";
     public string ApiKey { get; set; } = "";
     public string Model { get; set; } = "gpt-4o-mini";
+
+    /// <summary>All configured chat providers; the app uses the current one.</summary>
+    public List<ChatProvider> Providers { get; set; } = new()
+    {
+        new() { Name = "默认", BaseUrl = "https://api.openai.com/v1", Model = "gpt-4o-mini" }
+    };
+
+    /// <summary>Name of the provider selected in the chat window.</summary>
+    public string CurrentProvider { get; set; } = "默认";
+
     public double Temperature { get; set; } = 0.7;
     public bool AutoSendOnSelection { get; set; } = false;
     public bool AutoHideOnDeactivate { get; set; } = true;
@@ -35,14 +47,20 @@ public sealed class AppSettings
     /// <summary>Thinking budget in tokens; 0 = let the provider decide.</summary>
     public int ThinkingBudgetTokens { get; set; } = 0;
 
-    /// <summary>Default state of the "联网搜索" toggle for new conversations.</summary>
+    /// <summary>Legacy "always search" toggle, kept for migration only.</summary>
     public bool SearchEnabled { get; set; } = false;
 
-    /// <summary>Web search provider: Tavily | Custom.</summary>
+    /// <summary>Web search mode: Auto | Always | Off (null until first migration).</summary>
+    public string? SearchMode { get; set; }
+
+    /// <summary>Web search provider: Tavily | Google | Custom.</summary>
     public string SearchProvider { get; set; } = "Tavily";
 
-    /// <summary>API key for the search provider (Tavily).</summary>
+    /// <summary>API key for Tavily.</summary>
     public string SearchApiKey { get; set; } = "";
+
+    /// <summary>API key for Google search (Serper.dev).</summary>
+    public string GoogleSearchApiKey { get; set; } = "";
 
     /// <summary>Custom search URL with {query} placeholder returning Tavily-style JSON.</summary>
     public string CustomSearchUrl { get; set; } = "";

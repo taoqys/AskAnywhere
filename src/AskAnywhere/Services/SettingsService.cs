@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using AskAnywhere.Models;
@@ -55,10 +56,53 @@ public sealed class SettingsService
                 if (s != null)
                 {
                     s.ApiKey = Decrypt(s.ApiKey) ?? "";
+                    s.SearchApiKey = Decrypt(s.SearchApiKey) ?? "";
+                    s.GoogleSearchApiKey = Decrypt(s.GoogleSearchApiKey) ?? "";
+
                     if (s.Modes == null || s.Modes.Count == 0)
                     {
                         s.Modes = new AppSettings().Modes;
                     }
+
+                    // Migrate the legacy single-provider fields into the
+                    // multi-provider list when needed.
+                    if (s.Providers == null || s.Providers.Count == 0)
+                    {
+                        var legacy = new ChatProvider
+                        {
+                            Name = "默认",
+                            BaseUrl = string.IsNullOrWhiteSpace(s.BaseUrl)
+                                ? "https://api.openai.com/v1"
+                                : s.BaseUrl,
+                            ApiKey = s.ApiKey,
+                            Model = s.Model
+                        };
+                        s.Providers = new List<ChatProvider> { legacy };
+                    }
+                    foreach (var p in s.Providers)
+                    {
+                        p.ApiKey = Decrypt(p.ApiKey) ?? "";
+                        if (string.IsNullOrWhiteSpace(p.Name))
+                        {
+                            p.Name = "默认";
+                        }
+                        if (string.IsNullOrWhiteSpace(p.BaseUrl))
+                        {
+                            p.BaseUrl = "https://api.openai.com/v1";
+                        }
+                    }
+                    if (string.IsNullOrWhiteSpace(s.CurrentProvider)
+                        || !s.Providers.Any(p => p.Name == s.CurrentProvider))
+                    {
+                        s.CurrentProvider = s.Providers[0].Name;
+                    }
+
+                    // Migrate the old boolean toggle into the new search mode.
+                    if (s.SearchMode == null)
+                    {
+                        s.SearchMode = s.SearchEnabled ? "Always" : "Auto";
+                    }
+
                     return s;
                 }
             }
@@ -75,11 +119,21 @@ public sealed class SettingsService
         error = null;
         try
         {
+            // Deep copy so encrypted keys are written to disk while the
+            // in-memory settings keep the plaintext values.
             var copy = new AppSettings
             {
                 BaseUrl = _settings.BaseUrl,
                 ApiKey = Encrypt(_settings.ApiKey) ?? "",
                 Model = _settings.Model,
+                Providers = _settings.Providers?.Select(p => new ChatProvider
+                {
+                    Name = p.Name,
+                    BaseUrl = p.BaseUrl,
+                    ApiKey = Encrypt(p.ApiKey) ?? "",
+                    Model = p.Model
+                }).ToList() ?? new List<ChatProvider>(),
+                CurrentProvider = _settings.CurrentProvider,
                 Temperature = _settings.Temperature,
                 AutoSendOnSelection = _settings.AutoSendOnSelection,
                 AutoHideOnDeactivate = _settings.AutoHideOnDeactivate,
@@ -88,7 +142,13 @@ public sealed class SettingsService
                 AutoStart = _settings.AutoStart,
                 Modes = _settings.Modes,
                 ThinkingEnabled = _settings.ThinkingEnabled,
-                ThinkingBudgetTokens = _settings.ThinkingBudgetTokens
+                ThinkingBudgetTokens = _settings.ThinkingBudgetTokens,
+                SearchEnabled = _settings.SearchEnabled,
+                SearchMode = _settings.SearchMode ?? "Auto",
+                SearchProvider = _settings.SearchProvider,
+                SearchApiKey = Encrypt(_settings.SearchApiKey) ?? "",
+                GoogleSearchApiKey = Encrypt(_settings.GoogleSearchApiKey) ?? "",
+                CustomSearchUrl = _settings.CustomSearchUrl
             };
             var json = JsonSerializer.Serialize(copy, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_filePath, json);
@@ -99,6 +159,18 @@ public sealed class SettingsService
             error = ex.Message;
             return false;
         }
+    }
+
+    /// <summary>Returns the currently selected provider (falls back to the first).</summary>
+    public ChatProvider CurrentProvider()
+    {
+        var providers = _settings.Providers ?? new List<ChatProvider>();
+        if (providers.Count == 0)
+        {
+            providers.Add(new ChatProvider());
+        }
+        return providers.FirstOrDefault(p => p.Name == _settings.CurrentProvider)
+            ?? providers[0];
     }
 
     private static string? Encrypt(string plain)

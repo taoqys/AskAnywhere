@@ -91,18 +91,23 @@
             <!-- Input -->
             <Border Grid.Row="2" Background="#FFFAFAFC" BorderThickness="0,1,0,0" BorderBrush="#FFE4E6EB">
                 <StackPanel Margin="12,10,12,10">
-                    <!-- Mode + Model row -->
+                    <!-- Provider + Mode + Model row -->
                     <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="118"/>
+                            <ColumnDefinition Width="86"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="102"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="模式" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
-                        <ComboBox Grid.Column="1" x:Name="ModeCombo" Margin="8,0,14,0"/>
-                        <TextBlock Grid.Column="2" Text="模型" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
-                        <ComboBox Grid.Column="3" x:Name="ModelCombo" IsEditable="True" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="0" Text="供应" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
+                        <ComboBox Grid.Column="1" x:Name="ProviderCombo" Margin="6,0,10,0"
+                                  SelectionChanged="ProviderCombo_SelectionChanged"/>
+                        <TextBlock Grid.Column="2" Text="模式" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
+                        <ComboBox Grid.Column="3" x:Name="ModeCombo" Margin="6,0,10,0"/>
+                        <TextBlock Grid.Column="4" Text="模型" VerticalAlignment="Center" Foreground="#FF6E6E6E" FontSize="12"/>
+                        <ComboBox Grid.Column="5" x:Name="ModelCombo" IsEditable="True" Margin="6,0,0,0"/>
                     </Grid>
 
                     <!-- Input box -->
@@ -117,9 +122,9 @@
                                 Click="FetchModelsButton_Click" ToolTip="获取模型列表"/>
                         <CheckBox x:Name="TempThinkingCheck" DockPanel.Dock="Left" Content="推理"
                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <CheckBox x:Name="TempSearchCheck" DockPanel.Dock="Left" Content="联网"
+                        <ComboBox x:Name="SearchModeCombo" DockPanel.Dock="Left" Width="76"
                                   VerticalAlignment="Center" Margin="0,0,10,0"
-                                  ToolTip="发送前联网搜索相关资料（单次生效）"/>
+                                  ToolTip="搜索模式：自动 / 始终 / 关闭"/>
                         <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送"
                                 Click="SendButton_Click" Padding="16,6" Style="{StaticResource ButtonPrimary}"/>
                         <TextBlock x:Name="StatusText" DockPanel.Dock="Right" VerticalAlignment="Center"

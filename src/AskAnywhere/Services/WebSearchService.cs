@@ -17,12 +17,13 @@ public sealed class SearchResult
 
 /// <summary>
 /// Web search used before answering when the "联网" toggle is on.
-/// Primary provider: Tavily (JSON API, key configured by the user). A custom
-/// URL returning Tavily-style JSON is also supported for flexibility.
+/// Providers: Tavily (JSON API), Google via Serper.dev, and a custom URL that
+/// returns Tavily-style JSON.
 /// </summary>
 public sealed class WebSearchService
 {
     private const string TavilyEndpoint = "https://api.tavily.com/search";
+    private const string GoogleEndpoint = "https://google.serper.dev/search";
     private const int MaxResults = 6;
     private const int SnippetMaxLength = 500;
 
@@ -38,15 +39,17 @@ public sealed class WebSearchService
     public async Task<List<SearchResult>> SearchAsync(
         string query,
         string provider,
-        string apiKey,
+        string tavilyKey,
+        string googleKey,
         string customUrl,
         CancellationToken ct)
     {
         var normalized = (provider ?? "").Trim().ToLowerInvariant();
         return normalized switch
         {
+            "google" => await SearchGoogleAsync(query, googleKey, ct),
             "custom" => await SearchCustomAsync(query, customUrl, ct),
-            _ => await SearchTavilyAsync(query, apiKey, ct)
+            _ => await SearchTavilyAsync(query, tavilyKey, ct)
         };
     }
 
@@ -78,6 +81,81 @@ public sealed class WebSearchService
 
         var json = await resp.Content.ReadAsStringAsync(ct);
         return ParseResultsJson(json);
+    }
+
+    private async Task<List<SearchResult>> SearchGoogleAsync(string query, string apiKey, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return new List<SearchResult>();
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["q"] = query,
+            ["num"] = MaxResults,
+            ["hl"] = "zh-cn",
+            ["gl"] = "cn"
+        };
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, GoogleEndpoint)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json")
+        };
+        req.Headers.TryAddWithoutValidation("X-API-KEY", apiKey);
+
+        using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var err = await resp.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException($"Google HTTP {(int)resp.StatusCode}: {Truncate(err, 200)}");
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        return ParseGoogleJson(json);
+    }
+
+    private static List<SearchResult> ParseGoogleJson(string json)
+    {
+        var results = new List<SearchResult>();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("organic", out var organic)
+                || organic.ValueKind != JsonValueKind.Array)
+            {
+                return results;
+            }
+
+            foreach (var item in organic.EnumerateArray())
+            {
+                var title = GetString(item, "title");
+                var snippet = GetString(item, "snippet") ?? "";
+                var url = GetString(item, "link") ?? "";
+
+                if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(url))
+                {
+                    continue;
+                }
+
+                results.Add(new SearchResult
+                {
+                    Title = Clean(title),
+                    Snippet = Truncate(Clean(snippet), SnippetMaxLength),
+                    Url = Clean(url)
+                });
+
+                if (results.Count >= MaxResults)
+                {
+                    break;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Malformed response: return what we have (usually nothing).
+        }
+        return results;
     }
 
     private async Task<List<SearchResult>> SearchCustomAsync(string query, string customUrl, CancellationToken ct)

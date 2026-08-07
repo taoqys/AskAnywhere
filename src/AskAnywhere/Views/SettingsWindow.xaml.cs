@@ -35,9 +35,7 @@ public partial class SettingsWindow : Window
         ThinkingBudgetCombo.SelectedIndex = 0;
 
         var s = SettingsService.Instance.Current;
-        BaseUrlBox.Text = s.BaseUrl;
-        ApiKeyBox.Password = s.ApiKey;
-        ModelCombo.Text = s.Model;
+        ReloadProviders();
         TempSlider.Value = s.Temperature;
         TempValue.Text = s.Temperature.ToString("0.0");
         ThinkingCheck.IsChecked = s.ThinkingEnabled;
@@ -46,10 +44,14 @@ public partial class SettingsWindow : Window
         AutoHideCheck.IsChecked = s.AutoHideOnDeactivate;
         AutoStartCheck.IsChecked = s.AutoStart;
 
+        SearchModeCombo.Items.Add("自动");
+        SearchModeCombo.Items.Add("始终");
+        SearchModeCombo.Items.Add("关闭");
+        SelectSearchMode(s.SearchMode);
+
         SearchProviderCombo.Items.Add("Tavily");
         SearchProviderCombo.Items.Add("自定义");
         SelectSearchProvider(s.SearchProvider);
-        SearchCheck.IsChecked = s.SearchEnabled;
         SearchApiKeyBox.Password = s.SearchApiKey;
         CustomSearchUrlBox.Text = s.CustomSearchUrl;
         UpdateSearchPanels();
@@ -104,6 +106,128 @@ public partial class SettingsWindow : Window
         };
     }
 
+    private bool _updatingProviderUi;
+
+    private void ReloadProviders()
+    {
+        _updatingProviderUi = true;
+        var providers = SettingsService.Instance.Current.Providers;
+        ProviderCombo.Items.Clear();
+        foreach (var p in providers)
+        {
+            ProviderCombo.Items.Add(p.Name);
+        }
+        var current = SettingsService.Instance.Current.CurrentProvider;
+        int idx = providers.FindIndex(p => p.Name == current);
+        ProviderCombo.SelectedIndex = idx >= 0 ? idx : 0;
+        _updatingProviderUi = false;
+        ShowSelectedProvider();
+    }
+
+    private ChatProvider? SelectedProvider()
+    {
+        var providers = SettingsService.Instance.Current.Providers;
+        int idx = ProviderCombo.SelectedIndex;
+        return idx >= 0 && idx < providers.Count ? providers[idx] : null;
+    }
+
+    private void ProviderCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_updatingProviderUi)
+        {
+            return;
+        }
+        ShowSelectedProvider();
+    }
+
+    private void ShowSelectedProvider()
+    {
+        var p = SelectedProvider();
+        ProviderNameBox.Text = p?.Name ?? "";
+        BaseUrlBox.Text = p?.BaseUrl ?? "";
+        ApiKeyBox.Password = p?.ApiKey ?? "";
+        ModelCombo.Text = p?.Model ?? "";
+    }
+
+    private void ProviderNameBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_updatingProviderUi)
+        {
+            return;
+        }
+        var p = SelectedProvider();
+        if (p == null)
+        {
+            return;
+        }
+        p.Name = ProviderNameBox.Text;
+        int idx = ProviderCombo.SelectedIndex;
+        if (idx >= 0 && idx < ProviderCombo.Items.Count)
+        {
+            ProviderCombo.Items[idx] = p.Name;
+        }
+    }
+
+    private void AddProviderButton_Click(object sender, RoutedEventArgs e)
+    {
+        var providers = SettingsService.Instance.Current.Providers;
+        var p = new ChatProvider { Name = "新供应商" + (providers.Count + 1) };
+        providers.Add(p);
+        ReloadProviders();
+        ProviderCombo.SelectedIndex = providers.Count - 1;
+        ProviderNameBox.Focus();
+        ProviderNameBox.SelectAll();
+    }
+
+    private void RemoveProviderButton_Click(object sender, RoutedEventArgs e)
+    {
+        var providers = SettingsService.Instance.Current.Providers;
+        if (providers.Count <= 1)
+        {
+            ShowStatus("至少保留一个供应商", false);
+            return;
+        }
+        int idx = ProviderCombo.SelectedIndex;
+        if (idx < 0)
+        {
+            return;
+        }
+        providers.RemoveAt(idx);
+        ReloadProviders();
+        ProviderCombo.SelectedIndex = Math.Min(idx, providers.Count - 1);
+    }
+
+    private void SetDefaultProviderButton_Click(object sender, RoutedEventArgs e)
+    {
+        var p = SelectedProvider();
+        if (p == null)
+        {
+            return;
+        }
+        SettingsService.Instance.Update(settings => settings.CurrentProvider = p.Name, out _);
+        ShowStatus("已设为默认供应商", true);
+    }
+
+    private void SelectSearchMode(string? mode)
+    {
+        SearchModeCombo.SelectedIndex = mode?.Trim().ToLowerInvariant() switch
+        {
+            "always" => 1,
+            "off" => 2,
+            _ => 0
+        };
+    }
+
+    private string GetSearchMode()
+    {
+        return SearchModeCombo.SelectedIndex switch
+        {
+            1 => "Always",
+            2 => "Off",
+            _ => "Auto"
+        };
+    }
+
     private void SelectSearchProvider(string? provider)
     {
         SearchProviderCombo.SelectedIndex = provider?.Trim().ToLowerInvariant() == "custom" ? 1 : 0;
@@ -148,9 +272,15 @@ public partial class SettingsWindow : Window
 
     private async void ModelFetchButton_Click(object sender, RoutedEventArgs e)
     {
-        var baseUrl = BaseUrlBox.Text.Trim();
-        var apiKey = ApiKeyBox.Password.Trim();
-        if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(apiKey))
+        var p = SelectedProvider();
+        if (p == null)
+        {
+            ShowStatus("请先选择供应商", false);
+            return;
+        }
+        p.BaseUrl = BaseUrlBox.Text.Trim();
+        p.ApiKey = ApiKeyBox.Password.Trim();
+        if (string.IsNullOrEmpty(p.BaseUrl) || string.IsNullOrEmpty(p.ApiKey))
         {
             ShowStatus("请先填写 Base URL 和 API Key", false);
             return;
@@ -160,7 +290,7 @@ public partial class SettingsWindow : Window
         {
             ModelFetchButton.IsEnabled = false;
             ModelFetchButton.Content = "获取中…";
-            var models = await _chat.GetModelsAsync(baseUrl, apiKey, CancellationToken.None);
+            var models = await _chat.GetModelsAsync(p.BaseUrl, p.ApiKey, CancellationToken.None);
 
             var current = ModelCombo.Text;
             ModelCombo.Items.Clear();
@@ -330,16 +460,27 @@ public partial class SettingsWindow : Window
         var s = SettingsService.Instance;
         bool ok = s.Update(settings =>
         {
-            settings.BaseUrl = BaseUrlBox.Text.Trim();
-            settings.ApiKey = ApiKeyBox.Password.Trim();
-            settings.Model = ModelCombo.Text.Trim();
+            // Write the edited values back to the selected provider.
+            var p = SelectedProvider();
+            if (p != null)
+            {
+                p.Name = ProviderNameBox.Text.Trim();
+                p.BaseUrl = BaseUrlBox.Text.Trim();
+                p.ApiKey = ApiKeyBox.Password.Trim();
+                p.Model = ModelCombo.Text.Trim();
+            }
+            if (settings.Providers.Count > 0 && string.IsNullOrEmpty(settings.CurrentProvider))
+            {
+                settings.CurrentProvider = settings.Providers[0].Name;
+            }
             settings.Temperature = Math.Round(TempSlider.Value, 1);
             settings.ThinkingEnabled = ThinkingCheck.IsChecked == true;
             settings.ThinkingBudgetTokens = GetThinkingBudget();
             settings.AutoSendOnSelection = AutoSendCheck.IsChecked == true;
             settings.AutoHideOnDeactivate = AutoHideCheck.IsChecked == true;
             settings.AutoStart = AutoStartCheck.IsChecked == true;
-            settings.SearchEnabled = SearchCheck.IsChecked == true;
+            settings.SearchMode = GetSearchMode();
+            settings.SearchEnabled = GetSearchMode() != "Off";
             settings.SearchProvider = GetSearchProvider();
             settings.SearchApiKey = SearchApiKeyBox.Password.Trim();
             settings.CustomSearchUrl = CustomSearchUrlBox.Text.Trim();

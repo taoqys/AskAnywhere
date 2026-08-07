@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -24,6 +28,8 @@ public partial class ChatWindow : Window
 
     private StringBuilder? _streamBuffer;
     private StringBuilder? _streamReasoning;
+    private List<SearchResult>? _lastSearchResults;
+    private string? _lastQuery;
     private TextBlock? _streamTextBlock;
     private TextBlock? _streamReasoningBlock;
     private StackPanel? _streamPanel;
@@ -149,8 +155,8 @@ public partial class ChatWindow : Window
     public async void PrepareForShow()
     {
         PositionNearCursor();
+        ReloadProviders();
         ReloadModes();
-        ReloadModel();
 
         InputBox.Clear();
 
@@ -167,10 +173,15 @@ public partial class ChatWindow : Window
         bool hasSelection = !string.IsNullOrWhiteSpace(selected);
         var settings = SettingsService.Instance.Current;
 
-        // The temporary reasoning/search toggles start from the saved settings;
-        // they can be flipped for a single conversation without changing them.
+        // The temporary reasoning toggle and search mode start from the saved
+        // settings; they can be flipped for a single conversation.
         TempThinkingCheck.IsChecked = settings.ThinkingEnabled;
-        TempSearchCheck.IsChecked = settings.SearchEnabled;
+        SearchModeCombo.SelectedIndex = settings.SearchMode?.Trim().ToLowerInvariant() switch
+        {
+            "always" => 1,
+            "off" => 2,
+            _ => 0
+        };
 
         if (hasSelection)
         {
@@ -221,31 +232,74 @@ public partial class ChatWindow : Window
         }
     }
 
-    private void ReloadModel()
+    private void ReloadProviders()
     {
-        var s = SettingsService.Instance.Current;
-        if (!string.IsNullOrEmpty(s.Model) && ModelCombo.Items.IndexOf(s.Model) < 0)
+        var current = ProviderCombo.SelectedItem?.ToString() ?? "";
+        ProviderCombo.Items.Clear();
+        foreach (var p in SettingsService.Instance.Current.Providers)
         {
-            ModelCombo.Items.Add(s.Model);
+            ProviderCombo.Items.Add(p.Name);
         }
-        ModelCombo.Text = s.Model;
+
+        int idx = 0;
+        if (!string.IsNullOrEmpty(current))
+        {
+            int found = ProviderCombo.Items.IndexOf(current);
+            if (found >= 0)
+            {
+                idx = found;
+            }
+        }
+        if (ProviderCombo.Items.Count > 0)
+        {
+            ProviderCombo.SelectedIndex = Math.Min(idx, ProviderCombo.Items.Count - 1);
+        }
+        ReloadModel();
     }
 
-    /// <summary>Persists the selected model to the settings.</summary>
+    private void ProviderCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var selected = ProviderCombo.SelectedItem?.ToString();
+        if (!string.IsNullOrEmpty(selected))
+        {
+            SettingsService.Instance.Update(settings => settings.CurrentProvider = selected, out _);
+        }
+        ReloadModel();
+    }
+
+    private void ReloadModel()
+    {
+        var provider = SettingsService.Instance.CurrentProvider();
+        if (!string.IsNullOrEmpty(provider.Model) && ModelCombo.Items.IndexOf(provider.Model) < 0)
+        {
+            ModelCombo.Items.Add(provider.Model);
+        }
+        ModelCombo.Text = provider.Model;
+    }
+
+    /// <summary>Persists the selected model to the current provider.</summary>
     private void SaveModelSelection(string? model = null)
     {
-        var s = SettingsService.Instance;
         var m = (model ?? ModelCombo.Text)?.Trim();
-        if (!string.IsNullOrEmpty(m) && s.Current.Model != m)
+        if (string.IsNullOrEmpty(m))
         {
-            s.Update(settings => settings.Model = m, out _);
+            return;
         }
+        SettingsService.Instance.Update(settings =>
+        {
+            var p = settings.Providers.FirstOrDefault(x => x.Name == settings.CurrentProvider)
+                ?? settings.Providers.FirstOrDefault();
+            if (p != null)
+            {
+                p.Model = m;
+            }
+        }, out _);
     }
 
     private async void FetchModelsButton_Click(object sender, RoutedEventArgs e)
     {
-        var s = SettingsService.Instance.Current;
-        if (string.IsNullOrEmpty(s.BaseUrl) || string.IsNullOrEmpty(s.ApiKey))
+        var provider = SettingsService.Instance.CurrentProvider();
+        if (string.IsNullOrEmpty(provider.BaseUrl) || string.IsNullOrEmpty(provider.ApiKey))
         {
             ShowStatus("请先在设置中填写 Base URL 和 API Key");
             return;
@@ -254,7 +308,7 @@ public partial class ChatWindow : Window
         try
         {
             FetchModelsButton.IsEnabled = false;
-            var models = await _chat.GetModelsAsync(s.BaseUrl, s.ApiKey, CancellationToken.None);
+            var models = await _chat.GetModelsAsync(provider.BaseUrl, provider.ApiKey, CancellationToken.None);
 
             var current = ModelCombo.Text;
             ModelCombo.Items.Clear();
@@ -349,6 +403,8 @@ public partial class ChatWindow : Window
         MessagesPanel.Children.Clear();
         InputBox.Clear();
         _modePickerActive = false;
+        _lastSearchResults = null;
+        _lastQuery = null;
         ShowStatus("");
         Hide();
     }
@@ -367,7 +423,8 @@ public partial class ChatWindow : Window
         }
 
         var settings = SettingsService.Instance.Current;
-        if (string.IsNullOrEmpty(settings.ApiKey))
+        var provider = SettingsService.Instance.CurrentProvider();
+        if (string.IsNullOrEmpty(provider.ApiKey))
         {
             ShowStatus("请先在设置中填写 API Key");
             return;
@@ -376,7 +433,7 @@ public partial class ChatWindow : Window
         var model = ModelCombo.Text?.Trim();
         if (string.IsNullOrEmpty(model))
         {
-            model = settings.Model;
+            model = provider.Model;
         }
         SaveModelSelection(model);
 
@@ -388,64 +445,9 @@ public partial class ChatWindow : Window
         _isGenerating = true;
         UpdateSendButton();
 
-        // Optional web search: fetch results first, then inject them as an
-        // extra system block so the model can answer from live sources.
-        string? searchContext = null;
-        if (TempSearchCheck.IsChecked == true)
-        {
-            ShowStatus("正在搜索…");
-            var query = text.Length > 150 ? text.Substring(0, 150) : text;
-            var s = SettingsService.Instance.Current;
-            try
-            {
-                var results = await Task.Run(() =>
-                    _search.SearchAsync(query, s.SearchProvider, s.SearchApiKey, s.CustomSearchUrl, _cts.Token));
-                if (results.Count > 0)
-                {
-                    searchContext = BuildSearchContext(results);
-                    ShowStatus("已找到 " + results.Count + " 条结果");
-                }
-                else
-                {
-                    ShowStatus("未找到相关搜索结果");
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                _isGenerating = false;
-                UpdateSendButton();
-                ShowStatus("");
-                return;
-            }
-            catch (Exception ex)
-            {
-                ShowStatus("搜索失败: " + ex.Message);
-            }
-        }
-
-        // The window may have been hidden while searching.
-        if (!IsVisible)
-        {
-            _isGenerating = false;
-            UpdateSendButton();
-            return;
-        }
-
-        // Build the request messages: optional system prompt + full history.
-        var history = new List<ChatMessage>();
-        var systemPrompt = BuildSystemPrompt(ModeCombo.SelectedIndex);
-        if (!string.IsNullOrEmpty(systemPrompt))
-        {
-            history.Add(new ChatMessage("system", systemPrompt));
-        }
-        if (!string.IsNullOrEmpty(searchContext))
-        {
-            history.Add(new ChatMessage("system", searchContext));
-        }
-        history.AddRange(_messages);
-
         // Create the assistant bubble: reasoning block (grey, when enabled)
-        // above the final answer block.
+        // above the final answer block. It is created FIRST so the user sees
+        // immediate feedback (e.g. "正在搜索…") instead of a silent wait.
         var panel = new StackPanel();
         _streamPanel = panel;
         _streamReasoningBlock = new TextBlock
@@ -482,16 +484,92 @@ public partial class ChatWindow : Window
         _streamReasoning = new StringBuilder();
         ScrollToBottom();
 
+        // Optional web search. Mode: 自动 (Auto) / 始终 (Always) / 关闭 (Off).
+        string? searchContext = null;
+        _lastSearchResults = null;
+        _lastQuery = null;
+        var searchMode = SearchModeCombo.SelectedItem?.ToString() ?? "自动";
+        bool doSearch = searchMode switch
+        {
+            "始终" => true,
+            "关闭" => false,
+            _ => ShouldSearchAuto(text)
+        };
+
+        if (doSearch)
+        {
+            _streamTextBlock.Text = "🔍 正在搜索…";
+            ShowStatus("正在搜索…");
+            var query = text.Length > 150 ? text.Substring(0, 150) : text;
+            var s = SettingsService.Instance.Current;
+            try
+            {
+                var results = await Task.Run(() =>
+                    _search.SearchAsync(query, s.SearchProvider, s.SearchApiKey, s.GoogleSearchApiKey, s.CustomSearchUrl, _cts.Token));
+                if (results.Count > 0)
+                {
+                    searchContext = BuildSearchContext(results);
+                    _lastSearchResults = results;
+                    _lastQuery = query;
+                    ShowStatus("已找到 " + results.Count + " 条结果");
+                }
+                else
+                {
+                    ShowStatus("未找到相关搜索结果");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _streamTextBlock.Text = "";
+                _isGenerating = false;
+                UpdateSendButton();
+                ShowStatus("");
+                return;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("搜索失败: " + ex.Message);
+            }
+            // Clear the placeholder; streaming content will replace it.
+            _streamTextBlock.Text = "";
+        }
+
+        // The window may have been hidden while searching.
+        if (!IsVisible)
+        {
+            _isGenerating = false;
+            UpdateSendButton();
+            return;
+        }
+
+        // Build the request messages: optional system prompt + search context.
+        var history = new List<ChatMessage>();
+        var systemPrompt = BuildSystemPrompt(ModeCombo.SelectedIndex);
+        if (!string.IsNullOrEmpty(systemPrompt))
+        {
+            history.Add(new ChatMessage("system", systemPrompt));
+        }
+        if (!string.IsNullOrEmpty(searchContext))
+        {
+            history.Add(new ChatMessage("system", searchContext));
+        }
+        history.AddRange(_messages);
+
         var token = _cts.Token;
         var snapshot = new List<ChatMessage>(history);
         bool useThinking = TempThinkingCheck.IsChecked == true;
+        var baseUrl = provider.BaseUrl;
+        var apiKey = provider.ApiKey;
+        var temperature = settings.Temperature;
+        var thinkingBudget = settings.ThinkingBudgetTokens;
+        var effort = GetEffort(thinkingBudget);
         _ = Task.Run(async () =>
         {
             try
             {
                 await foreach (var delta in _chat.StreamChatAsync(
-                    settings.BaseUrl, settings.ApiKey, model, settings.Temperature,
-                    useThinking, settings.ThinkingBudgetTokens, GetEffort(settings.ThinkingBudgetTokens),
+                    baseUrl, apiKey, model, temperature,
+                    useThinking, thinkingBudget, effort,
                     snapshot, token))
                 {
                     var d = delta;
@@ -515,6 +593,94 @@ public partial class ChatWindow : Window
                 }
             }
         });
+    }
+
+    /// <summary>
+    /// Heuristic used by the "自动" search mode: search for short factual
+    /// questions and for anything time-sensitive (news, dates, prices...).
+    /// </summary>
+    private static bool ShouldSearchAuto(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+        if (text.Length <= 60
+            && Regex.IsMatch(text, @"是什么|什么是|谁|多少|哪个|为什么|怎么回事|哪里|where|who|what|when|how", RegexOptions.IgnoreCase))
+        {
+            return true;
+        }
+        return Regex.IsMatch(text, @"最新|新闻|今天|今日|今年|最近|近期|实时|当前|目前|公告|发布|上市|价格|版本|更新|新增|202[4-9]", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Appends the search sources under the answer bubble so the user can
+    /// verify the information, plus a one-click link to open Google for the
+    /// same query.
+    /// </summary>
+    private static void AppendSearchSources(StackPanel panel, List<SearchResult> results, string? query)
+    {
+        var sources = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var header = new TextBlock
+        {
+            Text = "📎 信源",
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = ReasoningBrush,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        sources.Children.Add(header);
+
+        for (int i = 0; i < results.Count; i++)
+        {
+            var r = results[i];
+            var url = r.Url;
+            var tb = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 0),
+                FontSize = 12
+            };
+            var link = new Hyperlink(new Run($"[{i + 1}] {r.Title}"))
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)),
+                TextDecorations = new TextDecorationCollection()
+            };
+            link.Click += (_, _) => OpenUrl(url);
+            tb.Inlines.Add(link);
+            sources.Children.Add(tb);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var gtb = new TextBlock
+            {
+                Margin = new Thickness(0, 6, 0, 0),
+                FontSize = 12
+            };
+            var glink = new Hyperlink(new Run("🔍 在 Google 查看搜索结果以验证"))
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)),
+                TextDecorations = new TextDecorationCollection()
+            };
+            glink.Click += (_, _) => OpenUrl("https://www.google.com/search?q=" + Uri.EscapeDataString(query));
+            gtb.Inlines.Add(glink);
+            sources.Children.Add(gtb);
+        }
+
+        panel.Children.Add(sources);
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Ignore failures to open the browser.
+        }
     }
 
     private static string? GetEffort(int budgetTokens)
@@ -600,6 +766,15 @@ public partial class ChatWindow : Window
         // Stream is over: swap the plain-text block for a fully rendered
         // Markdown view (headings, lists, tables and highlighted code).
         ReplaceStreamTextWithMarkdown();
+
+        // Show the search sources under the answer for verification.
+        if (_lastSearchResults is { Count: > 0 } && _streamPanel != null)
+        {
+            AppendSearchSources(_streamPanel, _lastSearchResults, _lastQuery);
+            ScrollToBottom();
+        }
+        _lastSearchResults = null;
+        _lastQuery = null;
 
         _streamBuffer = null;
         _streamReasoning = null;
