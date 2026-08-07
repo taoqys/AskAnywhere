@@ -45,6 +45,15 @@ public partial class SettingsWindow : Window
         AutoSendCheck.IsChecked = s.AutoSendOnSelection;
         AutoHideCheck.IsChecked = s.AutoHideOnDeactivate;
         AutoStartCheck.IsChecked = s.AutoStart;
+
+        SearchProviderCombo.Items.Add("Tavily");
+        SearchProviderCombo.Items.Add("自定义");
+        SelectSearchProvider(s.SearchProvider);
+        SearchCheck.IsChecked = s.SearchEnabled;
+        SearchApiKeyBox.Password = s.SearchApiKey;
+        CustomSearchUrlBox.Text = s.CustomSearchUrl;
+        UpdateSearchPanels();
+
         SelectHotkeyKey(s.HotkeyKey);
         ThresholdSlider.Value = s.HotkeyIntervalMs;
         ThresholdValue.Text = s.HotkeyIntervalMs.ToString();
@@ -93,6 +102,32 @@ public partial class SettingsWindow : Window
             3 => 8192,
             _ => 0
         };
+    }
+
+    private void SelectSearchProvider(string? provider)
+    {
+        SearchProviderCombo.SelectedIndex = provider?.Trim().ToLowerInvariant() == "custom" ? 1 : 0;
+    }
+
+    private string GetSearchProvider()
+    {
+        return SearchProviderCombo.SelectedIndex == 1 ? "Custom" : "Tavily";
+    }
+
+    private void SearchProviderCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdateSearchPanels();
+    }
+
+    private void UpdateSearchPanels()
+    {
+        if (SearchApiKeyPanel == null || CustomSearchUrlPanel == null)
+        {
+            return;
+        }
+        bool isCustom = SearchProviderCombo.SelectedIndex == 1;
+        SearchApiKeyPanel.Visibility = isCustom ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+        CustomSearchUrlPanel.Visibility = isCustom ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
     }
 
     private void TempSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -304,6 +339,10 @@ public partial class SettingsWindow : Window
             settings.AutoSendOnSelection = AutoSendCheck.IsChecked == true;
             settings.AutoHideOnDeactivate = AutoHideCheck.IsChecked == true;
             settings.AutoStart = AutoStartCheck.IsChecked == true;
+            settings.SearchEnabled = SearchCheck.IsChecked == true;
+            settings.SearchProvider = GetSearchProvider();
+            settings.SearchApiKey = SearchApiKeyBox.Password.Trim();
+            settings.CustomSearchUrl = CustomSearchUrlBox.Text.Trim();
             settings.HotkeyKey = GetHotkeyKey();
             settings.HotkeyIntervalMs = (int)Math.Round(ThresholdSlider.Value);
             // Modes are edited in place on the current instance.

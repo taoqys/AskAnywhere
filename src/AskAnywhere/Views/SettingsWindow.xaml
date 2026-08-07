@@ -44,6 +44,23 @@
             <CheckBox x:Name="AutoHideCheck" Content="窗口失焦后自动隐藏" Margin="0,0,0,8"/>
             <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Margin="0,0,0,14"/>
 
+            <TextBlock Text="联网搜索" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
+            <CheckBox x:Name="SearchCheck" Content="发送时自动联网搜索（聊天窗口底部可临时开关，单次生效）"
+                      Margin="0,0,0,8"/>
+            <DockPanel Margin="0,0,0,6">
+                <TextBlock Text="搜索服务：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                <ComboBox x:Name="SearchProviderCombo" Width="160" HorizontalAlignment="Left"
+                          SelectionChanged="SearchProviderCombo_SelectionChanged"/>
+            </DockPanel>
+            <StackPanel x:Name="SearchApiKeyPanel" Margin="0,0,0,10">
+                <TextBlock Text="Tavily API Key（https://tavily.com 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                <PasswordBox x:Name="SearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
+            </StackPanel>
+            <StackPanel x:Name="CustomSearchUrlPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                <TextBlock Text="自定义搜索 URL（用 {query} 表示查询词，返回 Tavily 风格 JSON）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                <TextBox x:Name="CustomSearchUrlBox" Margin="0,4,0,0" Padding="6,4"/>
+            </StackPanel>
+
             <TextBlock Text="快捷键" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
             <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="触发键：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>

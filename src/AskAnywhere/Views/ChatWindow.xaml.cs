@@ -17,6 +17,7 @@ namespace AskAnywhere.Views;
 public partial class ChatWindow : Window
 {
     private readonly ChatService _chat = new();
+    private readonly WebSearchService _search = new();
     private readonly List<ChatMessage> _messages = new();
     private CancellationTokenSource? _cts;
     private bool _isGenerating;
@@ -166,9 +167,10 @@ public partial class ChatWindow : Window
         bool hasSelection = !string.IsNullOrWhiteSpace(selected);
         var settings = SettingsService.Instance.Current;
 
-        // The temporary reasoning toggle starts from the saved setting; it can
-        // be flipped for a single conversation without changing the setting.
+        // The temporary reasoning/search toggles start from the saved settings;
+        // they can be flipped for a single conversation without changing them.
         TempThinkingCheck.IsChecked = settings.ThinkingEnabled;
+        TempSearchCheck.IsChecked = settings.SearchEnabled;
 
         if (hasSelection)
         {
@@ -351,7 +353,7 @@ public partial class ChatWindow : Window
         Hide();
     }
 
-    private void SendMessage()
+    private async void SendMessage()
     {
         if (_isGenerating)
         {
@@ -382,6 +384,53 @@ public partial class ChatWindow : Window
         AddMessage("user", text);
         _messages.Add(new ChatMessage("user", text));
 
+        _cts = new CancellationTokenSource();
+        _isGenerating = true;
+        UpdateSendButton();
+
+        // Optional web search: fetch results first, then inject them as an
+        // extra system block so the model can answer from live sources.
+        string? searchContext = null;
+        if (TempSearchCheck.IsChecked == true)
+        {
+            ShowStatus("正在搜索…");
+            var query = text.Length > 150 ? text.Substring(0, 150) : text;
+            var s = SettingsService.Instance.Current;
+            try
+            {
+                var results = await Task.Run(() =>
+                    _search.SearchAsync(query, s.SearchProvider, s.SearchApiKey, s.CustomSearchUrl, _cts.Token));
+                if (results.Count > 0)
+                {
+                    searchContext = BuildSearchContext(results);
+                    ShowStatus("已找到 " + results.Count + " 条结果");
+                }
+                else
+                {
+                    ShowStatus("未找到相关搜索结果");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _isGenerating = false;
+                UpdateSendButton();
+                ShowStatus("");
+                return;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("搜索失败: " + ex.Message);
+            }
+        }
+
+        // The window may have been hidden while searching.
+        if (!IsVisible)
+        {
+            _isGenerating = false;
+            UpdateSendButton();
+            return;
+        }
+
         // Build the request messages: optional system prompt + full history.
         var history = new List<ChatMessage>();
         var systemPrompt = BuildSystemPrompt(ModeCombo.SelectedIndex);
@@ -389,11 +438,11 @@ public partial class ChatWindow : Window
         {
             history.Add(new ChatMessage("system", systemPrompt));
         }
+        if (!string.IsNullOrEmpty(searchContext))
+        {
+            history.Add(new ChatMessage("system", searchContext));
+        }
         history.AddRange(_messages);
-
-        _cts = new CancellationTokenSource();
-        _isGenerating = true;
-        UpdateSendButton();
 
         // Create the assistant bubble: reasoning block (grey, when enabled)
         // above the final answer block.
@@ -585,6 +634,29 @@ public partial class ChatWindow : Window
         var viewer = MarkdownRenderService.CreateViewer(text);
         _streamPanel.Children.Insert(idx, viewer);
         ScrollToBottom();
+    }
+
+    /// <summary>Formats search hits as a system-prompt block for the model.</summary>
+    private static string BuildSearchContext(List<SearchResult> results)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("以下是针对用户问题的联网搜索结果，请优先参考这些资料回答，回答末尾可附上相关链接：");
+        sb.AppendLine();
+        for (int i = 0; i < results.Count; i++)
+        {
+            var r = results[i];
+            sb.Append('[').Append(i + 1).Append("] ").AppendLine(r.Title);
+            if (!string.IsNullOrEmpty(r.Snippet))
+            {
+                sb.AppendLine(r.Snippet);
+            }
+            if (!string.IsNullOrEmpty(r.Url))
+            {
+                sb.AppendLine(r.Url);
+            }
+            sb.AppendLine();
+        }
+        return sb.ToString().TrimEnd();
     }
 
     private void StopGeneration()

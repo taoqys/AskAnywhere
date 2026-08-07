@@ -34,4 +34,16 @@ public sealed class AppSettings
 
     /// <summary>Thinking budget in tokens; 0 = let the provider decide.</summary>
     public int ThinkingBudgetTokens { get; set; } = 0;
+
+    /// <summary>Default state of the "联网搜索" toggle for new conversations.</summary>
+    public bool SearchEnabled { get; set; } = false;
+
+    /// <summary>Web search provider: Tavily | Custom.</summary>
+    public string SearchProvider { get; set; } = "Tavily";
+
+    /// <summary>API key for the search provider (Tavily).</summary>
+    public string SearchApiKey { get; set; } = "";
+
+    /// <summary>Custom search URL with {query} placeholder returning Tavily-style JSON.</summary>
+    public string CustomSearchUrl { get; set; } = "";
 }
