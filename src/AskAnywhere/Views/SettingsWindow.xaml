@@ -25,6 +25,8 @@
                 <Button Content="设为默认" Click="SetDefaultProviderButton_Click" Padding="10,4"
                         Style="{StaticResource ButtonDefault}"/>
             </DockPanel>
+            <TextBlock Text="在下拉中选中要编辑的供应商；修改名称会即时同步到下拉列表，保存后生效。"
+                       Foreground="#FF8A8A8A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
             <TextBlock Text="供应商名称" Foreground="#FF5A5A5A"/>
             <TextBox x:Name="ProviderNameBox" Margin="0,4,0,12" Padding="6,4"
                      TextChanged="ProviderNameBox_TextChanged"/>

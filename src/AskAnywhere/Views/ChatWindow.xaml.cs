@@ -186,6 +186,12 @@ public partial class ChatWindow : Window
         // The temporary reasoning toggle and search mode start from the saved
         // settings; they can be flipped for a single conversation.
         TempThinkingCheck.IsChecked = settings.ThinkingEnabled;
+        if (SearchModeCombo.Items.Count == 0)
+        {
+            SearchModeCombo.Items.Add("自动");
+            SearchModeCombo.Items.Add("始终");
+            SearchModeCombo.Items.Add("关闭");
+        }
         SearchModeCombo.SelectedIndex = settings.SearchMode?.Trim().ToLowerInvariant() switch
         {
             "always" => 1,

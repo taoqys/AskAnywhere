@@ -11,7 +11,7 @@
     <AssemblyName>AskAnywhere</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>0.4.1</Version>
+    <Version>0.4.2</Version>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 

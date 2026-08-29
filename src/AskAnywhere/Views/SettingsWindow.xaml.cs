@@ -146,29 +146,37 @@ public partial class SettingsWindow : Window
 
     private void ShowSelectedProvider()
     {
-        var p = SelectedProvider();
-        ProviderNameBox.Text = p?.Name ?? "";
-        bool isZhihu = p?.Kind == "Zhihu";
-
-        ProviderBaseUrlPanel.Visibility = isZhihu ? Visibility.Collapsed : Visibility.Visible;
-        ProviderApiKeyPanel.Visibility = isZhihu ? Visibility.Collapsed : Visibility.Visible;
-        ProviderZhihuNote.Visibility = isZhihu ? Visibility.Visible : Visibility.Collapsed;
-
-        BaseUrlBox.Text = p?.BaseUrl ?? "";
-        ApiKeyBox.Password = p?.ApiKey ?? "";
-
-        if (isZhihu)
+        _updatingProviderUi = true;
+        try
         {
-            ModelCombo.Items.Clear();
-            foreach (var m in ChatService.ZhihuModels)
+            var p = SelectedProvider();
+            ProviderNameBox.Text = p?.Name ?? "";
+            bool isZhihu = p?.Kind == "Zhihu";
+
+            ProviderBaseUrlPanel.Visibility = isZhihu ? Visibility.Collapsed : Visibility.Visible;
+            ProviderApiKeyPanel.Visibility = isZhihu ? Visibility.Collapsed : Visibility.Visible;
+            ProviderZhihuNote.Visibility = isZhihu ? Visibility.Visible : Visibility.Collapsed;
+
+            BaseUrlBox.Text = p?.BaseUrl ?? "";
+            ApiKeyBox.Password = p?.ApiKey ?? "";
+
+            if (isZhihu)
             {
-                ModelCombo.Items.Add(m);
+                ModelCombo.Items.Clear();
+                foreach (var m in ChatService.ZhihuModels)
+                {
+                    ModelCombo.Items.Add(m);
+                }
+                ModelCombo.Text = string.IsNullOrWhiteSpace(p?.Model) ? "zhida-thinking-1p5" : p!.Model;
             }
-            ModelCombo.Text = string.IsNullOrWhiteSpace(p?.Model) ? "zhida-thinking-1p5" : p!.Model;
+            else
+            {
+                ModelCombo.Text = p?.Model ?? "";
+            }
         }
-        else
+        finally
         {
-            ModelCombo.Text = p?.Model ?? "";
+            _updatingProviderUi = false;
         }
     }
 
@@ -187,7 +195,17 @@ public partial class SettingsWindow : Window
         int idx = ProviderCombo.SelectedIndex;
         if (idx >= 0 && idx < ProviderCombo.Items.Count)
         {
-            ProviderCombo.Items[idx] = p.Name;
+            // Guard the item swap so it cannot re-enter the selection-changed
+            // handler and reset the editor while the user is typing.
+            _updatingProviderUi = true;
+            try
+            {
+                ProviderCombo.Items[idx] = p.Name;
+            }
+            finally
+            {
+                _updatingProviderUi = false;
+            }
         }
     }
 
@@ -445,7 +463,15 @@ public partial class SettingsWindow : Window
         int idx = ModesList.SelectedIndex;
         if (idx >= 0 && idx < ModesList.Items.Count)
         {
-            ModesList.Items[idx] = m.Name;
+            _updatingModeUi = true;
+            try
+            {
+                ModesList.Items[idx] = m.Name;
+            }
+            finally
+            {
+                _updatingModeUi = false;
+            }
         }
     }
 
@@ -532,10 +558,17 @@ public partial class SettingsWindow : Window
             var p = SelectedProvider();
             if (p != null)
             {
+                var oldName = p.Name;
                 p.Name = ProviderNameBox.Text.Trim();
                 p.BaseUrl = BaseUrlBox.Text.Trim();
                 p.ApiKey = ApiKeyBox.Password.Trim();
                 p.Model = ModelCombo.Text.Trim();
+
+                // Keep CurrentProvider in sync when the active provider is renamed.
+                if (!string.IsNullOrEmpty(oldName) && settings.CurrentProvider == oldName)
+                {
+                    settings.CurrentProvider = p.Name;
+                }
             }
             if (settings.Providers.Count > 0 && string.IsNullOrEmpty(settings.CurrentProvider))
             {
