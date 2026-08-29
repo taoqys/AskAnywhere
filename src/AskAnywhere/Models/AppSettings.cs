@@ -13,7 +13,8 @@ public sealed class AppSettings
     /// <summary>All configured chat providers; the app uses the current one.</summary>
     public List<ChatProvider> Providers { get; set; } = new()
     {
-        new() { Name = "默认", BaseUrl = "https://api.openai.com/v1", Model = "gpt-4o-mini" }
+        new() { Name = "默认", BaseUrl = "https://api.openai.com/v1", Model = "gpt-4o-mini" },
+        new() { Name = "知乎", Kind = "Zhihu", BaseUrl = "zhihu", Model = "zhida-thinking-1p5" }
     };
 
     /// <summary>Name of the provider selected in the chat window.</summary>
@@ -64,4 +65,10 @@ public sealed class AppSettings
 
     /// <summary>Custom search URL with {query} placeholder returning Tavily-style JSON.</summary>
     public string CustomSearchUrl { get; set; } = "";
+
+    /// <summary>Access Secret for the Zhihu Open Platform (search + Zhida chat).</summary>
+    public string ZhihuAccessSecret { get; set; } = "";
+
+    /// <summary>Number of Zhihu search results to fetch before answering.</summary>
+    public int ZhihuSearchCount { get; set; } = 5;
 }

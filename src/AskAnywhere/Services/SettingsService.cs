@@ -58,6 +58,7 @@ public sealed class SettingsService
                     s.ApiKey = Decrypt(s.ApiKey) ?? "";
                     s.SearchApiKey = Decrypt(s.SearchApiKey) ?? "";
                     s.GoogleSearchApiKey = Decrypt(s.GoogleSearchApiKey) ?? "";
+                    s.ZhihuAccessSecret = Decrypt(s.ZhihuAccessSecret) ?? "";
 
                     if (s.Modes == null || s.Modes.Count == 0)
                     {
@@ -90,7 +91,26 @@ public sealed class SettingsService
                         {
                             p.BaseUrl = "https://api.openai.com/v1";
                         }
+                        if (string.IsNullOrWhiteSpace(p.Kind))
+                        {
+                            p.Kind = "OpenAI";
+                        }
                     }
+
+                    // Make sure a Zhihu (Zhida) provider is always available so
+                    // users can pick the Zhida models even after upgrading from
+                    // an older settings file.
+                    if (!s.Providers.Any(p => p.Kind == "Zhihu"))
+                    {
+                        s.Providers.Add(new ChatProvider
+                        {
+                            Name = s.Providers.Any(p => p.Name == "知乎") ? "知乎直答" : "知乎",
+                            Kind = "Zhihu",
+                            BaseUrl = "zhihu",
+                            Model = "zhida-thinking-1p5"
+                        });
+                    }
+
                     if (string.IsNullOrWhiteSpace(s.CurrentProvider)
                         || !s.Providers.Any(p => p.Name == s.CurrentProvider))
                     {
@@ -131,7 +151,8 @@ public sealed class SettingsService
                     Name = p.Name,
                     BaseUrl = p.BaseUrl,
                     ApiKey = Encrypt(p.ApiKey) ?? "",
-                    Model = p.Model
+                    Model = p.Model,
+                    Kind = p.Kind
                 }).ToList() ?? new List<ChatProvider>(),
                 CurrentProvider = _settings.CurrentProvider,
                 Temperature = _settings.Temperature,
@@ -148,7 +169,9 @@ public sealed class SettingsService
                 SearchProvider = _settings.SearchProvider,
                 SearchApiKey = Encrypt(_settings.SearchApiKey) ?? "",
                 GoogleSearchApiKey = Encrypt(_settings.GoogleSearchApiKey) ?? "",
-                CustomSearchUrl = _settings.CustomSearchUrl
+                CustomSearchUrl = _settings.CustomSearchUrl,
+                ZhihuAccessSecret = Encrypt(_settings.ZhihuAccessSecret) ?? "",
+                ZhihuSearchCount = _settings.ZhihuSearchCount
             };
             var json = JsonSerializer.Serialize(copy, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_filePath, json);

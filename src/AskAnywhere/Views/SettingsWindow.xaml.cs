@@ -50,10 +50,14 @@ public partial class SettingsWindow : Window
         SelectSearchMode(s.SearchMode);
 
         SearchProviderCombo.Items.Add("Tavily");
+        SearchProviderCombo.Items.Add("Google");
+        SearchProviderCombo.Items.Add("知乎");
         SearchProviderCombo.Items.Add("自定义");
         SelectSearchProvider(s.SearchProvider);
         SearchApiKeyBox.Password = s.SearchApiKey;
+        GoogleSearchApiKeyBox.Password = s.GoogleSearchApiKey;
         CustomSearchUrlBox.Text = s.CustomSearchUrl;
+        ZhihuAccessSecretBox.Password = s.ZhihuAccessSecret;
         UpdateSearchPanels();
 
         SelectHotkeyKey(s.HotkeyKey);
@@ -144,9 +148,28 @@ public partial class SettingsWindow : Window
     {
         var p = SelectedProvider();
         ProviderNameBox.Text = p?.Name ?? "";
+        bool isZhihu = p?.Kind == "Zhihu";
+
+        ProviderBaseUrlPanel.Visibility = isZhihu ? Visibility.Collapsed : Visibility.Visible;
+        ProviderApiKeyPanel.Visibility = isZhihu ? Visibility.Collapsed : Visibility.Visible;
+        ProviderZhihuNote.Visibility = isZhihu ? Visibility.Visible : Visibility.Collapsed;
+
         BaseUrlBox.Text = p?.BaseUrl ?? "";
         ApiKeyBox.Password = p?.ApiKey ?? "";
-        ModelCombo.Text = p?.Model ?? "";
+
+        if (isZhihu)
+        {
+            ModelCombo.Items.Clear();
+            foreach (var m in ChatService.ZhihuModels)
+            {
+                ModelCombo.Items.Add(m);
+            }
+            ModelCombo.Text = string.IsNullOrWhiteSpace(p?.Model) ? "zhida-thinking-1p5" : p!.Model;
+        }
+        else
+        {
+            ModelCombo.Text = p?.Model ?? "";
+        }
     }
 
     private void ProviderNameBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -230,12 +253,24 @@ public partial class SettingsWindow : Window
 
     private void SelectSearchProvider(string? provider)
     {
-        SearchProviderCombo.SelectedIndex = provider?.Trim().ToLowerInvariant() == "custom" ? 1 : 0;
+        SearchProviderCombo.SelectedIndex = provider?.Trim().ToLowerInvariant() switch
+        {
+            "google" => 1,
+            "zhihu" => 2,
+            "custom" => 3,
+            _ => 0
+        };
     }
 
     private string GetSearchProvider()
     {
-        return SearchProviderCombo.SelectedIndex == 1 ? "Custom" : "Tavily";
+        return SearchProviderCombo.SelectedIndex switch
+        {
+            1 => "Google",
+            2 => "Zhihu",
+            3 => "Custom",
+            _ => "Tavily"
+        };
     }
 
     private void SearchProviderCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -249,8 +284,16 @@ public partial class SettingsWindow : Window
         {
             return;
         }
-        bool isCustom = SearchProviderCombo.SelectedIndex == 1;
-        SearchApiKeyPanel.Visibility = isCustom ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+        int idx = SearchProviderCombo.SelectedIndex;
+        bool isCustom = idx == 3;
+        bool isGoogle = idx == 1;
+        bool isZhihu = idx == 2;
+
+        SearchApiKeyPanel.Visibility = (isCustom || isGoogle || isZhihu)
+            ? System.Windows.Visibility.Collapsed
+            : System.Windows.Visibility.Visible;
+        GoogleSearchApiKeyPanel.Visibility = isGoogle ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        ZhihuSearchProviderNote.Visibility = isZhihu ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         CustomSearchUrlPanel.Visibility = isCustom ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
     }
 
@@ -278,6 +321,31 @@ public partial class SettingsWindow : Window
             ShowStatus("请先选择供应商", false);
             return;
         }
+
+        // Zhihu (Zhida) exposes a fixed model list, no /models endpoint.
+        if (p.Kind == "Zhihu")
+        {
+            ModelFetchButton.IsEnabled = false;
+            ModelFetchButton.Content = "获取中…";
+            try
+            {
+                var current = ModelCombo.Text;
+                ModelCombo.Items.Clear();
+                foreach (var id in ChatService.ZhihuModels)
+                {
+                    ModelCombo.Items.Add(id);
+                }
+                ModelCombo.Text = ChatService.ZhihuModels.Contains(current) ? current : ChatService.ZhihuModels[1];
+                ShowStatus($"知乎直答模型 {ChatService.ZhihuModels.Length} 个", true);
+            }
+            finally
+            {
+                ModelFetchButton.IsEnabled = true;
+                ModelFetchButton.Content = "获取模型列表";
+            }
+            return;
+        }
+
         p.BaseUrl = BaseUrlBox.Text.Trim();
         p.ApiKey = ApiKeyBox.Password.Trim();
         if (string.IsNullOrEmpty(p.BaseUrl) || string.IsNullOrEmpty(p.ApiKey))
@@ -483,7 +551,9 @@ public partial class SettingsWindow : Window
             settings.SearchEnabled = GetSearchMode() != "Off";
             settings.SearchProvider = GetSearchProvider();
             settings.SearchApiKey = SearchApiKeyBox.Password.Trim();
+            settings.GoogleSearchApiKey = GoogleSearchApiKeyBox.Password.Trim();
             settings.CustomSearchUrl = CustomSearchUrlBox.Text.Trim();
+            settings.ZhihuAccessSecret = ZhihuAccessSecretBox.Password.Trim();
             settings.HotkeyKey = GetHotkeyKey();
             settings.HotkeyIntervalMs = (int)Math.Round(ThresholdSlider.Value);
             // Modes are edited in place on the current instance.

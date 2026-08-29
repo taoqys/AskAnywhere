@@ -28,6 +28,8 @@
 - ✅ 功能列表：回答问题 / 解释 / 翻译 / 润色，每项提示词可编辑，可自由添加自定义功能
 - ✅ 自动获取模型列表（设置中「获取模型列表」）
 - ✅ OpenAI 兼容接口：Base URL / API Key / Model / Temperature 全部可配置
+- ✅ 知乎直答（Zhida）模型：`zhida-fast-1p5` / `zhida-thinking-1p5` / `zhida-agent`，作为独立供应商
+- ✅ 知乎站内搜索信源：回答前自动检索知乎内容，并可在浏览器一键核验核心问题
 - ✅ 流式输出（打字机效果），发送中可随时停止
 - ✅ 多轮对话上下文
 - ✅ **每次打开窗口自动保存旧会话到历史并开启新对话**（顶栏「历史」按钮 / 托盘菜单可查看）
@@ -84,13 +86,15 @@ GitHub Actions 会在每次 push 到 `main` 时自动构建并上传产物。
 | OpenAI | `https://api.openai.com/v1` |
 | Ollama（本地） | `http://127.0.0.1:11434/v1` |
 
+知乎直答不需要 Base URL，只需在设置 →「知乎开放平台」填写 Access Secret（在 https://developer.zhihu.com/profile 申请）。
+
 ## 许可证
 
 本项目基于 **MIT License** 开源，详见 [LICENSE](LICENSE)。
 
 ## 路线图
 
-- [ ] Markdown 渲染（代码高亮）
+- [x] Markdown 渲染（代码高亮）
 - [ ] 会话导出
 - [ ] 多显示器窗口定位优化
 - [ ] 图片/截图发送

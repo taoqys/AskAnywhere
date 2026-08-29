@@ -115,22 +115,34 @@
                              MinHeight="64" MaxHeight="140" VerticalScrollBarVisibility="Auto"
                              VerticalContentAlignment="Top" Padding="10,8"/>
 
-                    <!-- Bottom row -->
-                    <DockPanel Margin="0,8,0,0">
-                        <Button x:Name="FetchModelsButton" DockPanel.Dock="Left" Content="&#x27F3;" Width="30"
-                                Padding="0" Margin="0,0,8,0" Style="{StaticResource ButtonDefault}"
-                                Click="FetchModelsButton_Click" ToolTip="获取模型列表"/>
-                        <CheckBox x:Name="TempThinkingCheck" DockPanel.Dock="Left" Content="推理"
-                                  VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <ComboBox x:Name="SearchModeCombo" DockPanel.Dock="Left" Width="76"
-                                  VerticalAlignment="Center" Margin="0,0,10,0"
-                                  ToolTip="搜索模式：自动 / 始终 / 关闭"/>
-                        <Button x:Name="SendButton" DockPanel.Dock="Right" Content="发送"
-                                Click="SendButton_Click" Padding="16,6" Style="{StaticResource ButtonPrimary}"/>
-                        <TextBlock x:Name="StatusText" DockPanel.Dock="Right" VerticalAlignment="Center"
+                    <!-- Bottom controls row -->
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="FetchModelsButton" Content="&#x27F3;" Width="30"
+                                    Padding="0" Margin="0,0,8,0" Style="{StaticResource ButtonDefault}"
+                                    Click="FetchModelsButton_Click" ToolTip="获取模型列表"/>
+                            <CheckBox x:Name="TempThinkingCheck" Content="推理"
+                                      VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="SearchProviderCombo" Width="70"
+                                      VerticalAlignment="Center" Margin="0,0,8,0"
+                                      ToolTip="搜索/信源服务（手动选择）"/>
+                            <ComboBox x:Name="SearchModeCombo" Width="58"
+                                      VerticalAlignment="Center" Margin="0,0,0,0"
+                                      ToolTip="搜索模式：自动 / 始终 / 关闭"/>
+                        </StackPanel>
+                        <Button x:Name="SendButton" Grid.Column="1" Content="发送"
+                                Click="SendButton_Click" Padding="14,6" Style="{StaticResource ButtonPrimary}"/>
+                    </Grid>
+                    <!-- Status / hint row -->
+                    <DockPanel Margin="0,6,0,0">
+                        <TextBlock x:Name="HintText" DockPanel.Dock="Right" Text="↑/↓ 功能 · Enter 发送"
+                                   VerticalAlignment="Center" Foreground="#FF9A9A9A" FontSize="11"/>
+                        <TextBlock x:Name="StatusText" VerticalAlignment="Center"
                                    Foreground="#FF6B6B6B" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,0,10,0"/>
-                        <TextBlock x:Name="HintText" Text="↑/↓ 切换功能 · Enter 发送" VerticalAlignment="Center"
-                                   Foreground="#FF9A9A9A" FontSize="11"/>
                     </DockPanel>
                 </StackPanel>
             </Border>

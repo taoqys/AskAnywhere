@@ -30,6 +30,7 @@ public partial class ChatWindow : Window
     private StringBuilder? _streamReasoning;
     private List<SearchResult>? _lastSearchResults;
     private string? _lastQuery;
+    private string? _lastSearchProvider;
     private TextBlock? _streamTextBlock;
     private TextBlock? _streamReasoningBlock;
     private StackPanel? _streamPanel;
@@ -50,6 +51,15 @@ public partial class ChatWindow : Window
     // text look blurry.
     private static readonly SolidColorBrush AiBubbleBorderBrush = new(Color.FromRgb(0xE4, 0xE6, 0xEB));
     private static readonly SolidColorBrush UserBubbleBorderBrush = new(Color.FromRgb(0x17, 0x3F, 0xB5));
+
+    // View labels map to the SearchProvider codes used by WebSearchService.
+    private static readonly (string Label, string Code)[] SearchProviders =
+    {
+        ("Tavily", "Tavily"),
+        ("Google", "Google"),
+        ("知乎", "Zhihu"),
+        ("自定义", "Custom")
+    };
 
     public ChatWindow()
     {
@@ -182,6 +192,7 @@ public partial class ChatWindow : Window
             "off" => 2,
             _ => 0
         };
+        ReloadSearchProviders();
 
         if (hasSelection)
         {
@@ -270,11 +281,59 @@ public partial class ChatWindow : Window
     private void ReloadModel()
     {
         var provider = SettingsService.Instance.CurrentProvider();
-        if (!string.IsNullOrEmpty(provider.Model) && ModelCombo.Items.IndexOf(provider.Model) < 0)
+        if (provider.Kind == "Zhihu")
+        {
+            foreach (var m in ChatService.ZhihuModels)
+            {
+                if (!ModelCombo.Items.Contains(m))
+                {
+                    ModelCombo.Items.Add(m);
+                }
+            }
+        }
+        else if (!string.IsNullOrEmpty(provider.Model) && ModelCombo.Items.IndexOf(provider.Model) < 0)
         {
             ModelCombo.Items.Add(provider.Model);
         }
         ModelCombo.Text = provider.Model;
+    }
+
+    /// <summary>Fills the search-source combo from the settings default.</summary>
+    private void ReloadSearchProviders()
+    {
+        var settingsCode = SettingsService.Instance.Current.SearchProvider?.Trim().ToLowerInvariant() switch
+        {
+            "google" => "Google",
+            "custom" => "Custom",
+            "zhihu" => "Zhihu",
+            _ => "Tavily"
+        };
+        int idx = Array.FindIndex(SearchProviders, s => s.Code == settingsCode);
+
+        SearchProviderCombo.Items.Clear();
+        foreach (var sp in SearchProviders)
+        {
+            SearchProviderCombo.Items.Add(sp.Label);
+        }
+        SearchProviderCombo.SelectedIndex = idx >= 0 ? idx : 0;
+    }
+
+    /// <summary>Returns the selected search-source code (falls back to settings).</summary>
+    private string GetSearchProviderCode()
+    {
+        int i = SearchProviderCombo.SelectedIndex;
+        if (i >= 0 && i < SearchProviders.Length)
+        {
+            return SearchProviders[i].Code;
+        }
+        var s = SettingsService.Instance.Current.SearchProvider?.Trim().ToLowerInvariant();
+        return s switch
+        {
+            "google" => "Google",
+            "custom" => "Custom",
+            "zhihu" => "Zhihu",
+            _ => "Tavily"
+        };
     }
 
     /// <summary>Persists the selected model to the current provider.</summary>
@@ -299,6 +358,32 @@ public partial class ChatWindow : Window
     private async void FetchModelsButton_Click(object sender, RoutedEventArgs e)
     {
         var provider = SettingsService.Instance.CurrentProvider();
+
+        // Zhihu (Zhida) exposes a fixed set of models, no /models endpoint.
+        if (provider.Kind == "Zhihu")
+        {
+            FetchModelsButton.IsEnabled = false;
+            try
+            {
+                var current = ModelCombo.Text;
+                ModelCombo.Items.Clear();
+                foreach (var m in ChatService.ZhihuModels)
+                {
+                    ModelCombo.Items.Add(m);
+                }
+                ModelCombo.Text = !string.IsNullOrEmpty(current) && ChatService.ZhihuModels.Contains(current)
+                    ? current
+                    : ChatService.ZhihuModels[1];
+                SaveModelSelection();
+                ShowStatus("知乎直答模型 " + ChatService.ZhihuModels.Length + " 个");
+            }
+            finally
+            {
+                FetchModelsButton.IsEnabled = true;
+            }
+            return;
+        }
+
         if (string.IsNullOrEmpty(provider.BaseUrl) || string.IsNullOrEmpty(provider.ApiKey))
         {
             ShowStatus("请先在设置中填写 Base URL 和 API Key");
@@ -405,6 +490,7 @@ public partial class ChatWindow : Window
         _modePickerActive = false;
         _lastSearchResults = null;
         _lastQuery = null;
+        _lastSearchProvider = null;
         ShowStatus("");
         Hide();
     }
@@ -424,7 +510,13 @@ public partial class ChatWindow : Window
 
         var settings = SettingsService.Instance.Current;
         var provider = SettingsService.Instance.CurrentProvider();
-        if (string.IsNullOrEmpty(provider.ApiKey))
+        bool isZhihu = provider.Kind == "Zhihu";
+        if (isZhihu && string.IsNullOrEmpty(settings.ZhihuAccessSecret))
+        {
+            ShowStatus("请先在设置中填写知乎 Access Secret");
+            return;
+        }
+        if (!isZhihu && string.IsNullOrEmpty(provider.ApiKey))
         {
             ShowStatus("请先在设置中填写 API Key");
             return;
@@ -488,6 +580,7 @@ public partial class ChatWindow : Window
         string? searchContext = null;
         _lastSearchResults = null;
         _lastQuery = null;
+        _lastSearchProvider = null;
         var searchMode = SearchModeCombo.SelectedItem?.ToString() ?? "自动";
         bool doSearch = searchMode switch
         {
@@ -502,15 +595,17 @@ public partial class ChatWindow : Window
             ShowStatus("正在搜索…");
             var query = text.Length > 150 ? text.Substring(0, 150) : text;
             var s = SettingsService.Instance.Current;
+            var searchProvider = GetSearchProviderCode();
             try
             {
                 var results = await Task.Run(() =>
-                    _search.SearchAsync(query, s.SearchProvider, s.SearchApiKey, s.GoogleSearchApiKey, s.CustomSearchUrl, _cts.Token));
+                    _search.SearchAsync(query, searchProvider, s.SearchApiKey, s.GoogleSearchApiKey, s.CustomSearchUrl, s.ZhihuAccessSecret, _cts.Token));
                 if (results.Count > 0)
                 {
                     searchContext = BuildSearchContext(results);
                     _lastSearchResults = results;
                     _lastQuery = query;
+                    _lastSearchProvider = searchProvider;
                     ShowStatus("已找到 " + results.Count + " 条结果");
                 }
                 else
@@ -556,24 +651,40 @@ public partial class ChatWindow : Window
         history.AddRange(_messages);
 
         var token = _cts.Token;
-        var snapshot = new List<ChatMessage>(history);
-        bool useThinking = TempThinkingCheck.IsChecked == true;
+        // Zhida accepts role/content context, but some builds reject a "system"
+        // role, so fold any system prompt/context into a leading user turn.
+        var snapshot = isZhihu
+            ? history.Select(m => m.Role == "system" ? new ChatMessage("user", m.Content) : m).ToList()
+            : new List<ChatMessage>(history);
         var baseUrl = provider.BaseUrl;
         var apiKey = provider.ApiKey;
-        var temperature = settings.Temperature;
-        var thinkingBudget = settings.ThinkingBudgetTokens;
-        var effort = GetEffort(thinkingBudget);
+        var zhihuSecret = settings.ZhihuAccessSecret;
         _ = Task.Run(async () =>
         {
             try
             {
-                await foreach (var delta in _chat.StreamChatAsync(
-                    baseUrl, apiKey, model, temperature,
-                    useThinking, thinkingBudget, effort,
-                    snapshot, token))
+                if (isZhihu)
                 {
-                    var d = delta;
-                    Dispatcher.Invoke(() => AppendStreamChunk(d));
+                    await foreach (var delta in _chat.StreamZhihuAsync(zhihuSecret, model, snapshot, token))
+                    {
+                        var d = delta;
+                        Dispatcher.Invoke(() => AppendStreamChunk(d));
+                    }
+                }
+                else
+                {
+                    bool useThinking = TempThinkingCheck.IsChecked == true;
+                    var temperature = settings.Temperature;
+                    var thinkingBudget = settings.ThinkingBudgetTokens;
+                    var effort = GetEffort(thinkingBudget);
+                    await foreach (var delta in _chat.StreamChatAsync(
+                        baseUrl, apiKey, model, temperature,
+                        useThinking, thinkingBudget, effort,
+                        snapshot, token))
+                    {
+                        var d = delta;
+                        Dispatcher.Invoke(() => AppendStreamChunk(d));
+                    }
                 }
                 Dispatcher.Invoke(() => FinishStream(true));
             }
@@ -618,7 +729,7 @@ public partial class ChatWindow : Window
     /// verify the information, plus a one-click link to open Google for the
     /// same query.
     /// </summary>
-    private static void AppendSearchSources(StackPanel panel, List<SearchResult> results, string? query)
+    private static void AppendSearchSources(StackPanel panel, List<SearchResult> results, string? query, string? providerCode)
     {
         var sources = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
         var header = new TextBlock
@@ -653,22 +764,29 @@ public partial class ChatWindow : Window
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var gtb = new TextBlock
+            var verifyBtn = new Button
             {
-                Margin = new Thickness(0, 6, 0, 0),
-                FontSize = 12
+                Content = "🔍 用浏览器搜索核验",
+                FontSize = 12,
+                Padding = new Thickness(10, 4, 10, 4),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 8, 0, 0),
+                Cursor = Cursors.Hand
             };
-            var glink = new Hyperlink(new Run("🔍 在 Google 查看搜索结果以验证"))
-            {
-                Foreground = new SolidColorBrush(Color.FromRgb(0x25, 0x63, 0xEB)),
-                TextDecorations = new TextDecorationCollection()
-            };
-            glink.Click += (_, _) => OpenUrl("https://www.google.com/search?q=" + Uri.EscapeDataString(query));
-            gtb.Inlines.Add(glink);
-            sources.Children.Add(gtb);
+            verifyBtn.Click += (_, _) => OpenUrl(BuildVerifyUrl(providerCode, query));
+            sources.Children.Add(verifyBtn);
         }
 
         panel.Children.Add(sources);
+    }
+
+    /// <summary>Opens the core query on the matching source site for verification.</summary>
+    private static string BuildVerifyUrl(string? providerCode, string query)
+    {
+        var q = Uri.EscapeDataString(query);
+        return providerCode == "Zhihu"
+            ? "https://www.zhihu.com/search?type=content&q=" + q
+            : "https://www.google.com/search?q=" + q;
     }
 
     private static void OpenUrl(string url)
@@ -770,11 +888,12 @@ public partial class ChatWindow : Window
         // Show the search sources under the answer for verification.
         if (_lastSearchResults is { Count: > 0 } && _streamPanel != null)
         {
-            AppendSearchSources(_streamPanel, _lastSearchResults, _lastQuery);
+            AppendSearchSources(_streamPanel, _lastSearchResults, _lastQuery, _lastSearchProvider);
             ScrollToBottom();
         }
         _lastSearchResults = null;
         _lastQuery = null;
+        _lastSearchProvider = null;
 
         _streamBuffer = null;
         _streamReasoning = null;

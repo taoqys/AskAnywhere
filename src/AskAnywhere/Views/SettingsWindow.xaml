@@ -28,10 +28,16 @@
             <TextBlock Text="供应商名称" Foreground="#FF5A5A5A"/>
             <TextBox x:Name="ProviderNameBox" Margin="0,4,0,12" Padding="6,4"
                      TextChanged="ProviderNameBox_TextChanged"/>
-            <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF5A5A5A"/>
-            <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" />
-            <TextBlock Text="API Key" Foreground="#FF5A5A5A"/>
-            <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" />
+            <StackPanel x:Name="ProviderBaseUrlPanel">
+                <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF5A5A5A"/>
+                <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" />
+            </StackPanel>
+            <StackPanel x:Name="ProviderApiKeyPanel">
+                <TextBlock Text="API Key" Foreground="#FF5A5A5A"/>
+                <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" />
+            </StackPanel>
+            <TextBlock x:Name="ProviderZhihuNote" Text="知乎直答：模型见下方，凭据使用下方「知乎 Access Secret」，无需 Base URL / API Key。"
+                       Foreground="#FF8A8A8A" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12" Visibility="Collapsed"/>
             <DockPanel Margin="0,0,0,6">
                 <Button x:Name="ModelFetchButton" DockPanel.Dock="Right" Content="获取模型列表" Click="ModelFetchButton_Click"
                         Padding="10,4" Style="{StaticResource ButtonDefault}" Margin="8,0,0,0"/>
@@ -76,10 +82,22 @@
                 <TextBlock Text="Tavily API Key（https://tavily.com 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
                 <PasswordBox x:Name="SearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
             </StackPanel>
+            <StackPanel x:Name="GoogleSearchApiKeyPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                <TextBlock Text="Google 搜索 API Key（https://serper.dev 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                <PasswordBox x:Name="GoogleSearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
+            </StackPanel>
+            <StackPanel x:Name="ZhihuSearchProviderNote" Margin="0,0,0,10" Visibility="Collapsed">
+                <TextBlock Text="知乎信源：使用下方「知乎 Access Secret」，无需额外 Key。" Foreground="#FF8A8A8A" TextWrapping="Wrap"/>
+            </StackPanel>
             <StackPanel x:Name="CustomSearchUrlPanel" Margin="0,0,0,10" Visibility="Collapsed">
                 <TextBlock Text="自定义搜索 URL（用 {query} 表示查询词，返回 Tavily 风格 JSON）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
                 <TextBox x:Name="CustomSearchUrlBox" Margin="0,4,0,0" Padding="6,4"/>
             </StackPanel>
+
+            <TextBlock Text="知乎开放平台" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
+            <TextBlock Text="Access Secret（用于知乎站内搜索与知乎直答，在 developer.zhihu.com/profile 登录后申请）"
+                       Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+            <PasswordBox x:Name="ZhihuAccessSecretBox" Margin="0,4,0,14" Padding="6,4"/>
 
             <TextBlock Text="快捷键" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
             <DockPanel Margin="0,0,0,4">

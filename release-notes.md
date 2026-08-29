@@ -1,6 +1,15 @@
-# AskAnywhere v0.3.0
+# AskAnywhere v0.4.0
 
 轻量、常驻后台的 Windows AI 助手：连按 Shift 唤起聊天窗口，自动捕获选中文字，支持任意 OpenAI 兼容 API（DeepSeek / OpenAI / Ollama 等）。
+
+## v0.4.0 更新
+
+- **知乎接入**：新增「知乎」供应商（知乎直答 Zhida），模型含 `zhida-fast-1p5` / `zhida-thinking-1p5` / `zhida-agent`，可作普通聊天模型使用
+- **知乎信源**：联网搜索新增「知乎」选项，回答前检索知乎站内内容作为参考资料，回答下方照常展示「📎 信源」链接
+- **浏览器核验**：信源下方新增「🔍 用浏览器搜索核验」按钮，一键用浏览器打开核心问题（知乎站则跳知乎搜索，其余跳 Google）
+- **搜索信源手动选择**：聊天窗口底部新增搜索信源下拉（Tavily / Google / 知乎 / 自定义），单次对话生效
+- **搜索信源补全**：设置中补齐此前代码已支持但未暴露的 Google（Serper.dev）信源
+- 知乎 Access Secret 使用 Windows DPAPI 加密存储
 
 ## v0.3.0 更新
 

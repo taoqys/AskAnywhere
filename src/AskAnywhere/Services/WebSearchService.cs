@@ -24,6 +24,7 @@ public sealed class WebSearchService
 {
     private const string TavilyEndpoint = "https://api.tavily.com/search";
     private const string GoogleEndpoint = "https://google.serper.dev/search";
+    private const string ZhihuSearchEndpoint = "https://developer.zhihu.com/api/v1/content/zhihu_search";
     private const int MaxResults = 6;
     private const int SnippetMaxLength = 500;
 
@@ -42,6 +43,7 @@ public sealed class WebSearchService
         string tavilyKey,
         string googleKey,
         string customUrl,
+        string zhihuSecret,
         CancellationToken ct)
     {
         var normalized = (provider ?? "").Trim().ToLowerInvariant();
@@ -49,8 +51,92 @@ public sealed class WebSearchService
         {
             "google" => await SearchGoogleAsync(query, googleKey, ct),
             "custom" => await SearchCustomAsync(query, customUrl, ct),
+            "zhihu" => await SearchZhihuAsync(query, zhihuSecret, ct),
             _ => await SearchTavilyAsync(query, tavilyKey, ct)
         };
+    }
+
+    /// <summary>
+    /// Searches Zhihu in-site content via the Zhihu Open Platform API. The
+    /// Access Secret is sent as a Bearer token plus a Unix timestamp header.
+    /// </summary>
+    private async Task<List<SearchResult>> SearchZhihuAsync(string query, string accessSecret, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(accessSecret))
+        {
+            return new List<SearchResult>();
+        }
+
+        var url = ZhihuSearchEndpoint
+            + "?Query=" + Uri.EscapeDataString(query)
+            + "&Count=" + MaxResults;
+
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + accessSecret);
+        req.Headers.TryAddWithoutValidation("X-Request-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+        req.Headers.TryAddWithoutValidation("Content-Type", "application/json");
+
+        using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var err = await resp.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException($"知乎搜索 HTTP {(int)resp.StatusCode}: {Truncate(err, 200)}");
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        return ParseZhihuJson(json);
+    }
+
+    /// <summary>Parses a Zhihu zhihu_search response: {Data:{Items:[...]}}.</summary>
+    private static List<SearchResult> ParseZhihuJson(string json)
+    {
+        var results = new List<SearchResult>();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("Data", out var data)
+                || !data.TryGetProperty("Items", out var items)
+                || items.ValueKind != JsonValueKind.Array)
+            {
+                return results;
+            }
+
+            foreach (var item in items.EnumerateArray())
+            {
+                var title = Clean(GetString(item, "Title"));
+                var url = Clean(GetString(item, "Url"));
+                var snippet = Clean(GetString(item, "ContentText"));
+                var author = Clean(GetString(item, "AuthorName"));
+
+                if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(url))
+                {
+                    continue;
+                }
+
+                // Prepend the author so the model can weigh the source.
+                if (!string.IsNullOrEmpty(author))
+                {
+                    snippet = "作者：" + author + (snippet.Length > 0 ? " · " + snippet : "");
+                }
+
+                results.Add(new SearchResult
+                {
+                    Title = title,
+                    Snippet = Truncate(snippet, SnippetMaxLength),
+                    Url = url
+                });
+
+                if (results.Count >= MaxResults)
+                {
+                    break;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Malformed response: return what we have (usually nothing).
+        }
+        return results;
     }
 
     private async Task<List<SearchResult>> SearchTavilyAsync(string query, string apiKey, CancellationToken ct)

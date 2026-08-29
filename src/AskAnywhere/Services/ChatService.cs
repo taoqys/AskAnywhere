@@ -57,6 +57,16 @@ public sealed class ChatException : Exception
 /// </summary>
 public sealed class ChatService
 {
+    private const string ZhihuChatUrl = "https://developer.zhihu.com/v1/chat/completions";
+
+    /// <summary>Models exposed by the Zhihu provider (知乎直答).</summary>
+    public static readonly string[] ZhihuModels =
+    {
+        "zhida-fast-1p5",
+        "zhida-thinking-1p5",
+        "zhida-agent"
+    };
+
     private readonly HttpClient _http;
 
     public ChatService()
@@ -118,6 +128,58 @@ public sealed class ChatService
         }
 
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        await foreach (var delta in ReadSseAsync(stream, ct))
+        {
+            yield return delta;
+        }
+    }
+
+    /// <summary>
+    /// Streams a Zhida (知乎直答) completion. The endpoint is OpenAI-compatible
+    /// and uses the same SSE shape (delta.content / delta.reasoning_content),
+    /// but it authenticates with the Zhihu Access Secret plus a timestamp.
+    /// </summary>
+    public async IAsyncEnumerable<ChatDelta> StreamZhihuAsync(
+        string accessSecret,
+        string model,
+        IReadOnlyList<ChatMessage> messages,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, ZhihuChatUrl);
+        req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + accessSecret);
+        req.Headers.TryAddWithoutValidation("X-Request-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["messages"] = messages,
+            ["stream"] = true
+        };
+        req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            throw new ChatException($"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}: {errorBody}");
+        }
+
+        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        await foreach (var delta in ReadSseAsync(stream, ct))
+        {
+            yield return delta;
+        }
+    }
+
+    /// <summary>
+    /// Shard SSE reader: it parses OpenAI-compatible chunks into ChatDelta
+    /// (final answer + optional hidden reasoning), skipping heartbeats and
+    /// finishing on [DONE].
+    /// </summary>
+    private static async IAsyncEnumerable<ChatDelta> ReadSseAsync(
+        Stream stream,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
         string? line;
