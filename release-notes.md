@@ -1,6 +1,10 @@
-# AskAnywhere v0.4.0
+# AskAnywhere v0.4.1
 
 轻量、常驻后台的 Windows AI 助手：连按 Shift 唤起聊天窗口，自动捕获选中文字，支持任意 OpenAI 兼容 API（DeepSeek / OpenAI / Ollama 等）。
+
+## v0.4.1 更新
+
+- **修复流式回答跨线程异常**：后台流式任务不再直接读取 UI 线程上的「推理」开关，而是在 UI 线程先取值，避免出现「调用线程无法访问此对象」错误
 
 ## v0.4.0 更新
 

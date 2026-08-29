@@ -659,6 +659,12 @@ public partial class ChatWindow : Window
         var baseUrl = provider.BaseUrl;
         var apiKey = provider.ApiKey;
         var zhihuSecret = settings.ZhihuAccessSecret;
+        // Read UI-owned state on the UI thread before kicking off the background
+        // stream, so the background task never touches a WPF control directly.
+        bool useThinking = TempThinkingCheck.IsChecked == true;
+        var temperature = settings.Temperature;
+        var thinkingBudget = settings.ThinkingBudgetTokens;
+        var effort = GetEffort(thinkingBudget);
         _ = Task.Run(async () =>
         {
             try
@@ -673,10 +679,6 @@ public partial class ChatWindow : Window
                 }
                 else
                 {
-                    bool useThinking = TempThinkingCheck.IsChecked == true;
-                    var temperature = settings.Temperature;
-                    var thinkingBudget = settings.ThinkingBudgetTokens;
-                    var effort = GetEffort(thinkingBudget);
                     await foreach (var delta in _chat.StreamChatAsync(
                         baseUrl, apiKey, model, temperature,
                         useThinking, thinkingBudget, effort,
