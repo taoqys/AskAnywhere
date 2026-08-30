@@ -9,135 +9,170 @@
         Foreground="#FF1F1F1F"
         FontFamily="Microsoft YaHei UI, Segoe UI"
         FontSize="13">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="20,16" MaxWidth="520">
-            <TextBlock Text="API 配置（多供应商）" FontWeight="SemiBold" FontSize="15" Margin="0,0,0,10"/>
-            <DockPanel Margin="0,0,0,6">
-                <TextBlock Text="当前供应商：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                <ComboBox x:Name="ProviderCombo" Width="200" HorizontalAlignment="Left"
-                          SelectionChanged="ProviderCombo_SelectionChanged"/>
-            </DockPanel>
-            <DockPanel Margin="0,0,0,10">
-                <Button Content="添加" Click="AddProviderButton_Click" Padding="10,4"
-                        Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
-                <Button Content="删除所选" Click="RemoveProviderButton_Click" Padding="10,4"
-                        Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
-                <Button Content="设为默认" Click="SetDefaultProviderButton_Click" Padding="10,4"
-                        Style="{StaticResource ButtonDefault}"/>
-            </DockPanel>
-            <TextBlock Text="在下拉中选中要编辑的供应商；修改名称会即时同步到下拉列表，保存后生效。"
-                       Foreground="#FF8A8A8A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
-            <TextBlock Text="供应商名称" Foreground="#FF5A5A5A"/>
-            <TextBox x:Name="ProviderNameBox" Margin="0,4,0,12" Padding="6,4"
-                     TextChanged="ProviderNameBox_TextChanged"/>
-            <StackPanel x:Name="ProviderBaseUrlPanel">
-                <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF5A5A5A"/>
-                <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" />
-            </StackPanel>
-            <StackPanel x:Name="ProviderApiKeyPanel">
-                <TextBlock Text="API Key" Foreground="#FF5A5A5A"/>
-                <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" />
-            </StackPanel>
-            <TextBlock x:Name="ProviderZhihuNote" Text="知乎直答：模型见下方，凭据使用下方「知乎 Access Secret」，无需 Base URL / API Key。"
-                       Foreground="#FF8A8A8A" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12" Visibility="Collapsed"/>
-            <DockPanel Margin="0,0,0,6">
-                <Button x:Name="ModelFetchButton" DockPanel.Dock="Right" Content="获取模型列表" Click="ModelFetchButton_Click"
-                        Padding="10,4" Style="{StaticResource ButtonDefault}" Margin="8,0,0,0"/>
-                <TextBlock Text="模型（Model）" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-            </DockPanel>
-            <ComboBox x:Name="ModelCombo" IsEditable="True" Margin="0,4,0,12" Padding="6,4"
-                      />
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <DockPanel Margin="0,0,0,6">
-                <TextBlock Text="Temperature:" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                <TextBlock x:Name="TempValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
-                <Slider x:Name="TempSlider" Minimum="0" Maximum="2" TickFrequency="0.1"
-                        ValueChanged="TempSlider_ValueChanged"/>
-            </DockPanel>
+        <TabControl Grid.Row="0" Margin="12,10,12,6">
+            <!-- 模型供应商 -->
+            <TabItem Header="模型供应商">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,12" MaxWidth="520">
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="当前供应商：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <ComboBox x:Name="ProviderCombo" Width="200" HorizontalAlignment="Left"
+                                      SelectionChanged="ProviderCombo_SelectionChanged"/>
+                        </DockPanel>
+                        <DockPanel Margin="0,0,0,10">
+                            <Button Content="添加" Click="AddProviderButton_Click" Padding="10,4"
+                                    Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
+                            <Button Content="删除所选" Click="RemoveProviderButton_Click" Padding="10,4"
+                                    Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
+                            <Button Content="设为默认" Click="SetDefaultProviderButton_Click" Padding="10,4"
+                                    Style="{StaticResource ButtonDefault}"/>
+                        </DockPanel>
+                        <TextBlock Text="在下拉中选中要编辑的供应商；修改名称会即时同步到下拉列表，保存后生效。"
+                                   Foreground="#FF8A8A8A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <TextBlock Text="供应商名称" Foreground="#FF5A5A5A"/>
+                        <TextBox x:Name="ProviderNameBox" Margin="0,4,0,12" Padding="6,4"
+                                 TextChanged="ProviderNameBox_TextChanged"/>
+                        <StackPanel x:Name="ProviderBaseUrlPanel">
+                            <TextBlock Text="Base URL（OpenAI 兼容接口地址）" Foreground="#FF5A5A5A"/>
+                            <TextBox x:Name="BaseUrlBox" Margin="0,4,0,12" Padding="6,4" />
+                        </StackPanel>
+                        <StackPanel x:Name="ProviderApiKeyPanel">
+                            <TextBlock Text="API Key" Foreground="#FF5A5A5A"/>
+                            <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,12" Padding="6,4" />
+                        </StackPanel>
+                        <TextBlock x:Name="ProviderZhihuNote" Text="知乎直答：模型见下方，凭据使用「知乎开放平台」页的 Access Secret，无需 Base URL / API Key。"
+                                   Foreground="#FF8A8A8A" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12" Visibility="Collapsed"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <Button x:Name="ModelFetchButton" DockPanel.Dock="Right" Content="获取模型列表" Click="ModelFetchButton_Click"
+                                    Padding="10,4" Style="{StaticResource ButtonDefault}" Margin="8,0,0,0"/>
+                            <TextBlock Text="模型（Model）" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                        </DockPanel>
+                        <ComboBox x:Name="ModelCombo" IsEditable="True" Margin="0,4,0,12" Padding="6,4"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="Temperature:" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <TextBlock x:Name="TempValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+                            <Slider x:Name="TempSlider" Minimum="0" Maximum="2" TickFrequency="0.1"
+                                    ValueChanged="TempSlider_ValueChanged"/>
+                        </DockPanel>
+                        <CheckBox x:Name="ThinkingCheck" Content="启用推理（DeepSeek 思考模式，思考内容会以灰色显示）"
+                                  Margin="0,4,0,6"/>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="推理强度：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <ComboBox x:Name="ThinkingBudgetCombo" Width="140" HorizontalAlignment="Left"/>
+                        </DockPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-            <CheckBox x:Name="ThinkingCheck" Content="启用推理（DeepSeek 思考模式，思考内容会以灰色显示）"
-                      Margin="0,4,0,6"/>
-            <DockPanel Margin="0,0,0,14">
-                <TextBlock Text="推理强度：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                <ComboBox x:Name="ThinkingBudgetCombo" Width="140" HorizontalAlignment="Left"
-                          />
-            </DockPanel>
+            <!-- 联网搜索 -->
+            <TabItem Header="联网搜索">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,12" MaxWidth="520">
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="搜索模式（默认）：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <ComboBox x:Name="SearchModeCombo" Width="130" HorizontalAlignment="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="自动：视问题是否需要联网（默认由模型判断）；始终：每次都搜索；关闭：不搜索。聊天窗口底部可临时切换（单次生效）。"
+                                   Foreground="#FF8A8A8A" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="自动判断方式：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <ComboBox x:Name="SearchDecisionCombo" Width="130" HorizontalAlignment="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="模型：用当前模型快速判断是否需要联网；关键词：按时间敏感词/短问句规则判断。"
+                                   Foreground="#FF8A8A8A" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,10"/>
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="搜索服务：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <ComboBox x:Name="SearchProviderCombo" Width="160" HorizontalAlignment="Left"
+                                      SelectionChanged="SearchProviderCombo_SelectionChanged"/>
+                        </DockPanel>
+                        <StackPanel x:Name="SearchApiKeyPanel" Margin="0,0,0,10">
+                            <TextBlock Text="Tavily API Key（https://tavily.com 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                            <PasswordBox x:Name="SearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel x:Name="GoogleSearchApiKeyPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                            <TextBlock Text="Google 搜索 API Key（https://serper.dev 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                            <PasswordBox x:Name="GoogleSearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
+                        </StackPanel>
+                        <StackPanel x:Name="ZhihuSearchProviderNote" Margin="0,0,0,10" Visibility="Collapsed">
+                            <TextBlock Text="知乎信源：使用「知乎开放平台」页的 Access Secret，无需额外 Key。" Foreground="#FF8A8A8A" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel x:Name="CustomSearchUrlPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                            <TextBlock Text="自定义搜索 URL（用 {query} 表示查询词，返回 Tavily 风格 JSON）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                            <TextBox x:Name="CustomSearchUrlBox" Margin="0,4,0,0" Padding="6,4"/>
+                        </StackPanel>
 
-            <TextBlock Text="行为" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-            <CheckBox x:Name="AutoSendCheck" Content="选中文字后自动发送（不勾选则用 ↑/↓ 选操作后回车发送）" Margin="0,0,0,8"/>
-            <CheckBox x:Name="AutoHideCheck" Content="窗口失焦后自动隐藏" Margin="0,0,0,8"/>
-            <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Margin="0,0,0,14"/>
+                        <TextBlock Text="知乎开放平台" FontWeight="SemiBold" FontSize="15" Margin="0,10,0,8"/>
+                        <TextBlock Text="Access Secret（用于知乎站内搜索与知乎直答，在 developer.zhihu.com/profile 登录后申请）"
+                                   Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
+                        <PasswordBox x:Name="ZhihuAccessSecretBox" Margin="0,4,0,8" Padding="6,4"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-            <TextBlock Text="联网搜索" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-            <DockPanel Margin="0,0,0,6">
-                <TextBlock Text="搜索模式（默认）：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                <ComboBox x:Name="SearchModeCombo" Width="120" HorizontalAlignment="Left"/>
-            </DockPanel>
-            <TextBlock Text="自动：含时间敏感词或短小事实性问题时自动搜索；始终：每次都搜索；关闭：不搜索。聊天窗口底部可临时切换（单次生效）。"
-                       Foreground="#FF8A8A8A" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,8"/>
-            <DockPanel Margin="0,0,0,6">
-                <TextBlock Text="搜索服务：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                <ComboBox x:Name="SearchProviderCombo" Width="160" HorizontalAlignment="Left"
-                          SelectionChanged="SearchProviderCombo_SelectionChanged"/>
-            </DockPanel>
-            <StackPanel x:Name="SearchApiKeyPanel" Margin="0,0,0,10">
-                <TextBlock Text="Tavily API Key（https://tavily.com 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
-                <PasswordBox x:Name="SearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
-            </StackPanel>
-            <StackPanel x:Name="GoogleSearchApiKeyPanel" Margin="0,0,0,10" Visibility="Collapsed">
-                <TextBlock Text="Google 搜索 API Key（https://serper.dev 注册获取，有免费额度）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
-                <PasswordBox x:Name="GoogleSearchApiKeyBox" Margin="0,4,0,0" Padding="6,4"/>
-            </StackPanel>
-            <StackPanel x:Name="ZhihuSearchProviderNote" Margin="0,0,0,10" Visibility="Collapsed">
-                <TextBlock Text="知乎信源：使用下方「知乎 Access Secret」，无需额外 Key。" Foreground="#FF8A8A8A" TextWrapping="Wrap"/>
-            </StackPanel>
-            <StackPanel x:Name="CustomSearchUrlPanel" Margin="0,0,0,10" Visibility="Collapsed">
-                <TextBlock Text="自定义搜索 URL（用 {query} 表示查询词，返回 Tavily 风格 JSON）" Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
-                <TextBox x:Name="CustomSearchUrlBox" Margin="0,4,0,0" Padding="6,4"/>
-            </StackPanel>
+            <!-- 行为 -->
+            <TabItem Header="行为">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,12" MaxWidth="520">
+                        <CheckBox x:Name="AutoSendCheck" Content="选中文字后自动发送（不勾选则用 ↑/↓ 选操作后回车发送）" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="AutoHideCheck" Content="窗口失焦后自动隐藏" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" Margin="0,0,0,8"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-            <TextBlock Text="知乎开放平台" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-            <TextBlock Text="Access Secret（用于知乎站内搜索与知乎直答，在 developer.zhihu.com/profile 登录后申请）"
-                       Foreground="#FF5A5A5A" TextWrapping="Wrap"/>
-            <PasswordBox x:Name="ZhihuAccessSecretBox" Margin="0,4,0,14" Padding="6,4"/>
+            <!-- 快捷键 -->
+            <TabItem Header="快捷键">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,12" MaxWidth="520">
+                        <DockPanel Margin="0,0,0,4">
+                            <TextBlock Text="触发键：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
+                            <ComboBox x:Name="HotkeyKeyCombo" Width="120" HorizontalAlignment="Left"/>
+                        </DockPanel>
+                        <TextBlock Text="连按该键两次唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF5A5A5A"/>
+                        <DockPanel Margin="0,4,0,8">
+                            <TextBlock x:Name="ThresholdValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
+                            <Slider x:Name="ThresholdSlider" Minimum="100" Maximum="800" TickFrequency="50" IsSnapToTickEnabled="True"
+                                    ValueChanged="ThresholdSlider_ValueChanged"/>
+                        </DockPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-            <TextBlock Text="快捷键" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,10"/>
-            <DockPanel Margin="0,0,0,4">
-                <TextBlock Text="触发键：" VerticalAlignment="Center" Foreground="#FF5A5A5A"/>
-                <ComboBox x:Name="HotkeyKeyCombo" Width="120" HorizontalAlignment="Left"
-                          />
-            </DockPanel>
-            <TextBlock Text="连按该键两次唤起窗口（下方为两次按下的最大间隔）" Foreground="#FF5A5A5A"/>
-            <DockPanel Margin="0,4,0,14">
-                <TextBlock x:Name="ThresholdValue" DockPanel.Dock="Right" Width="40" TextAlignment="Right" VerticalAlignment="Center"/>
-                <Slider x:Name="ThresholdSlider" Minimum="100" Maximum="800" TickFrequency="50" IsSnapToTickEnabled="True"
-                        ValueChanged="ThresholdSlider_ValueChanged"/>
-            </DockPanel>
+            <!-- 功能与提示词 -->
+            <TabItem Header="功能与提示词">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="12,12" MaxWidth="520">
+                        <TextBlock Text="每项都可编辑（包括内置）。聊天窗口里用 ↑/↓ 切换功能。" Foreground="#FF8A8A8A" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <ListBox x:Name="ModesList" Height="96" SelectionChanged="ModesList_SelectionChanged"/>
+                        <DockPanel Margin="0,8,0,4">
+                            <TextBlock Text="名称：" VerticalAlignment="Center" Foreground="#FF5A5A5A" Width="40"/>
+                            <TextBox x:Name="ModeNameBox" Padding="6,4"
+                                     TextChanged="ModeNameBox_TextChanged"/>
+                        </DockPanel>
+                        <TextBlock Text="提示词（system prompt）：" Foreground="#FF5A5A5A"/>
+                        <TextBox x:Name="ModePromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="60" Margin="0,4,0,6"
+                                 Padding="6,4" TextChanged="ModePromptBox_TextChanged"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Content="添加" Click="AddModeButton_Click" Padding="12,4" Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
+                            <Button Content="删除所选" Click="RemoveModeButton_Click" Padding="12,4" Style="{StaticResource ButtonDefault}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
 
-            <TextBlock Text="功能与提示词（每项都可编辑，包括内置）" FontWeight="SemiBold" FontSize="15" Margin="0,6,0,8"/>
-            <ListBox x:Name="ModesList" Height="96" SelectionChanged="ModesList_SelectionChanged"
-                     />
-            <DockPanel Margin="0,8,0,4">
-                <TextBlock Text="名称：" VerticalAlignment="Center" Foreground="#FF5A5A5A" Width="40"/>
-                <TextBox x:Name="ModeNameBox" Padding="6,4" 
-                         TextChanged="ModeNameBox_TextChanged"/>
-            </DockPanel>
-            <TextBlock Text="提示词（system prompt）：" Foreground="#FF5A5A5A"/>
-            <TextBox x:Name="ModePromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="60" Margin="0,4,0,6"
-                      
-                     Padding="6,4" TextChanged="ModePromptBox_TextChanged"/>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                <Button Content="添加" Click="AddModeButton_Click" Padding="12,4" Style="{StaticResource ButtonDefault}" Margin="0,0,8,0"/>
-                <Button Content="删除所选" Click="RemoveModeButton_Click" Padding="12,4" Style="{StaticResource ButtonDefault}"/>
-            </StackPanel>
-
-            <TextBlock x:Name="SaveStatusText" Foreground="#FF1D8A4F" FontSize="11" Margin="0,10,0,0"
-                       TextWrapping="Wrap" MaxHeight="32"/>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <StackPanel Grid.Row="1" Margin="12,6,12,12">
+            <TextBlock x:Name="SaveStatusText" Foreground="#FF1D8A4F" FontSize="11" TextWrapping="Wrap" MaxHeight="32"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0">
                 <Button Content="保存" Click="SaveButton_Click" Padding="20,6" Style="{StaticResource ButtonPrimary}" Margin="0,0,10,0"/>
                 <Button Content="取消" Click="CancelButton_Click" Padding="20,6" Style="{StaticResource ButtonDefault}"/>
             </StackPanel>
         </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </Window>

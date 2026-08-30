@@ -95,6 +95,11 @@ public sealed class SettingsService
                         {
                             p.Kind = "OpenAI";
                         }
+                        p.Models ??= new List<string>();
+                        if (p.Kind == "Zhihu" && p.Models.Count == 0)
+                        {
+                            p.Models = new List<string>(ChatService.ZhihuModels);
+                        }
                     }
 
                     // Make sure a Zhihu (Zhida) provider is always available so
@@ -121,6 +126,10 @@ public sealed class SettingsService
                     if (s.SearchMode == null)
                     {
                         s.SearchMode = s.SearchEnabled ? "Always" : "Auto";
+                    }
+                    if (string.IsNullOrWhiteSpace(s.AutoSearchDecision))
+                    {
+                        s.AutoSearchDecision = "Model";
                     }
 
                     return s;
@@ -152,7 +161,8 @@ public sealed class SettingsService
                     BaseUrl = p.BaseUrl,
                     ApiKey = Encrypt(p.ApiKey) ?? "",
                     Model = p.Model,
-                    Kind = p.Kind
+                    Kind = p.Kind,
+                    Models = p.Models?.ToList() ?? new List<string>()
                 }).ToList() ?? new List<ChatProvider>(),
                 CurrentProvider = _settings.CurrentProvider,
                 Temperature = _settings.Temperature,
@@ -166,6 +176,7 @@ public sealed class SettingsService
                 ThinkingBudgetTokens = _settings.ThinkingBudgetTokens,
                 SearchEnabled = _settings.SearchEnabled,
                 SearchMode = _settings.SearchMode ?? "Auto",
+                AutoSearchDecision = _settings.AutoSearchDecision,
                 SearchProvider = _settings.SearchProvider,
                 SearchApiKey = Encrypt(_settings.SearchApiKey) ?? "",
                 GoogleSearchApiKey = Encrypt(_settings.GoogleSearchApiKey) ?? "",

@@ -54,6 +54,9 @@ public sealed class AppSettings
     /// <summary>Web search mode: Auto | Always | Off (null until first migration).</summary>
     public string? SearchMode { get; set; }
 
+    /// <summary>How Auto search decides to search: "Model" (ask the LLM) or "Heuristic" (keywords).</summary>
+    public string AutoSearchDecision { get; set; } = "Model";
+
     /// <summary>Web search provider: Tavily | Google | Custom.</summary>
     public string SearchProvider { get; set; } = "Tavily";
 

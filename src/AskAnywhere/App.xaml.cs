@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using AskAnywhere.Services;
@@ -75,6 +78,72 @@ public partial class App : Application
         _keyboardHook = new KeyboardHookService(ParseHotkeyKey(settings.HotkeyKey), settings.HotkeyIntervalMs);
         _keyboardHook.DoubleTapPressed += ToggleChatWindow;
         ApplyHotkey();
+
+        // Pre-fetch model lists so the picker shows every provider's models
+        // as soon as the chat window is opened. Runs in the background.
+        _ = RefreshModelsAsync();
+    }
+
+    /// <summary>
+    /// Fetches the model list for every provider that has credentials but no
+    /// cached list yet (first launch). Zhihu providers always get their fixed
+    /// Zhida models. Persists the result so the UI can switch models instantly.
+    /// </summary>
+    private static async Task RefreshModelsAsync()
+    {
+        var chat = new ChatService();
+        var providers = SettingsService.Instance.Current.Providers;
+        var fetched = new Dictionary<string, List<string>>();
+
+        foreach (var p in providers)
+        {
+            if (p.Kind == "Zhihu")
+            {
+                if (!p.Models.SequenceEqual(ChatService.ZhihuModels))
+                {
+                    fetched[p.Name] = new List<string>(ChatService.ZhihuModels);
+                }
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(p.BaseUrl) || string.IsNullOrWhiteSpace(p.ApiKey))
+            {
+                continue;
+            }
+            if (p.Models.Count > 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var models = await chat.GetModelsAsync(p.BaseUrl, p.ApiKey, CancellationToken.None);
+                if (models.Count > 0 && !fetched.ContainsKey(p.Name))
+                {
+                    fetched[p.Name] = models;
+                }
+            }
+            catch
+            {
+                // A provider may be temporarily unreachable; leave it uncached.
+            }
+        }
+
+        if (fetched.Count == 0)
+        {
+            return;
+        }
+
+        SettingsService.Instance.Update(s =>
+        {
+            foreach (var p in s.Providers)
+            {
+                if (fetched.TryGetValue(p.Name, out var models))
+                {
+                    p.Models = models;
+                }
+            }
+        }, out _);
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -267,6 +267,112 @@ public sealed class ChatService
         return list;
     }
 
+    /// <summary>
+    /// Non-streaming OpenAI-compatible completion. Used for lightweight
+    /// decisions (e.g. whether a question needs web search).
+    /// </summary>
+    public async Task<string> CompleteAsync(
+        string baseUrl,
+        string apiKey,
+        string model,
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken ct)
+    {
+        var url = BuildUrl(baseUrl);
+        using var req = new HttpRequestMessage(HttpMethod.Post, url);
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["messages"] = messages,
+            ["stream"] = false
+        };
+        req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            throw new ChatException($"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}: {errorBody}");
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0
+            && choices[0].TryGetProperty("message", out var message)
+            && message.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String)
+        {
+            return content.GetString() ?? "";
+        }
+        return "";
+    }
+
+    /// <summary>Non-streaming Zhida (知乎直答) completion.</summary>
+    public async Task<string> CompleteZhihuAsync(
+        string accessSecret,
+        string model,
+        IReadOnlyList<ChatMessage> messages,
+        CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, ZhihuChatUrl);
+        req.Headers.TryAddWithoutValidation("Authorization", "Bearer " + accessSecret);
+        req.Headers.TryAddWithoutValidation("X-Request-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["model"] = model,
+            ["messages"] = messages,
+            ["stream"] = false
+        };
+        req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var errorBody = await resp.Content.ReadAsStringAsync(ct);
+            throw new ChatException($"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}: {errorBody}");
+        }
+
+        var json = await resp.Content.ReadAsStringAsync(ct);
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0
+            && choices[0].TryGetProperty("message", out var message)
+            && message.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String)
+        {
+            return content.GetString() ?? "";
+        }
+        return "";
+    }
+
+    /// <summary>
+    /// Asks the current model whether the question needs web search. The model
+    /// answers YES/NO; a YES means the caller should search before answering.
+    /// </summary>
+    public async Task<bool> DecideSearchAsync(
+        string baseUrl,
+        string apiKey,
+        string model,
+        bool isZhihu,
+        string zhihuSecret,
+        string question,
+        CancellationToken ct)
+    {
+        var system = new ChatMessage("system",
+            "你是联网搜索决策器。判断该问题是否需要联网搜索才能给出准确、最新的答案（如实时信息、新闻、事实核查、价格、版本、争议观点）。如果当前知识足够且无时效性，回答 NO。只回答 YES 或 NO。");
+        var msgs = new List<ChatMessage> { system, new ChatMessage("user", question) };
+
+        var reply = isZhihu
+            ? await CompleteZhihuAsync(zhihuSecret, model, msgs, ct)
+            : await CompleteAsync(baseUrl, apiKey, model, msgs, ct);
+
+        return reply?.IndexOf("YES", StringComparison.OrdinalIgnoreCase) >= 0
+            && !reply.Contains("NO", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string BuildUrl(string baseUrl)
     {
         var url = baseUrl?.Trim() ?? "";

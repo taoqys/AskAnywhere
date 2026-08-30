@@ -49,6 +49,10 @@ public partial class SettingsWindow : Window
         SearchModeCombo.Items.Add("关闭");
         SelectSearchMode(s.SearchMode);
 
+        SearchDecisionCombo.Items.Add("模型判定");
+        SearchDecisionCombo.Items.Add("关键词");
+        SelectSearchDecision(s.AutoSearchDecision);
+
         SearchProviderCombo.Items.Add("Tavily");
         SearchProviderCombo.Items.Add("Google");
         SearchProviderCombo.Items.Add("知乎");
@@ -267,6 +271,16 @@ public partial class SettingsWindow : Window
             2 => "Off",
             _ => "Auto"
         };
+    }
+
+    private void SelectSearchDecision(string? mode)
+    {
+        SearchDecisionCombo.SelectedIndex = mode?.Trim().ToLowerInvariant() == "heuristic" ? 1 : 0;
+    }
+
+    private string GetSearchDecision()
+    {
+        return SearchDecisionCombo.SelectedIndex == 1 ? "Heuristic" : "Model";
     }
 
     private void SelectSearchProvider(string? provider)
@@ -582,6 +596,7 @@ public partial class SettingsWindow : Window
             settings.AutoStart = AutoStartCheck.IsChecked == true;
             settings.SearchMode = GetSearchMode();
             settings.SearchEnabled = GetSearchMode() != "Off";
+            settings.AutoSearchDecision = GetSearchDecision();
             settings.SearchProvider = GetSearchProvider();
             settings.SearchApiKey = SearchApiKeyBox.Password.Trim();
             settings.GoogleSearchApiKey = GoogleSearchApiKeyBox.Password.Trim();

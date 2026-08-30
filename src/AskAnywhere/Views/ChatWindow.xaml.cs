@@ -36,6 +36,9 @@ public partial class ChatWindow : Window
     private StackPanel? _streamPanel;
     private DispatcherTimer? _streamTimer;
     private DispatcherTimer? _deactivateTimer;
+    private List<(string Provider, string Model)> _modelEntries = new();
+    private bool _updatingModel;
+    private bool _updatingProvider;
 
     // While true, Up/Down switch the chat action and Enter sends, no matter
     // which control has keyboard focus. It stays active for the whole time the
@@ -66,7 +69,7 @@ public partial class ChatWindow : Window
         InitializeComponent();
         PreviewKeyDown += ChatWindow_PreviewKeyDown;
         Deactivated += ChatWindow_Deactivated;
-        ModelCombo.SelectionChanged += (_, _) => SaveModelSelection();
+        ModelCombo.SelectionChanged += ModelCombo_SelectionChanged;
     }
 
     private void ChatWindow_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -267,15 +270,27 @@ public partial class ChatWindow : Window
                 idx = found;
             }
         }
-        if (ProviderCombo.Items.Count > 0)
+        _updatingProvider = true;
+        try
         {
-            ProviderCombo.SelectedIndex = Math.Min(idx, ProviderCombo.Items.Count - 1);
+            if (ProviderCombo.Items.Count > 0)
+            {
+                ProviderCombo.SelectedIndex = Math.Min(idx, ProviderCombo.Items.Count - 1);
+            }
+        }
+        finally
+        {
+            _updatingProvider = false;
         }
         ReloadModel();
     }
 
     private void ProviderCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_updatingProvider)
+        {
+            return;
+        }
         var selected = ProviderCombo.SelectedItem?.ToString();
         if (!string.IsNullOrEmpty(selected))
         {
@@ -286,22 +301,103 @@ public partial class ChatWindow : Window
 
     private void ReloadModel()
     {
+        var settings = SettingsService.Instance.Current;
         var provider = SettingsService.Instance.CurrentProvider();
-        if (provider.Kind == "Zhihu")
+
+        _updatingModel = true;
+        try
         {
-            foreach (var m in ChatService.ZhihuModels)
+            _modelEntries.Clear();
+            var seen = new HashSet<string>();
+
+            foreach (var p in settings.Providers)
             {
-                if (!ModelCombo.Items.Contains(m))
+                IEnumerable<string> models = p.Models;
+                if (models == null || !models.Any())
                 {
-                    ModelCombo.Items.Add(m);
+                    models = p.Kind == "Zhihu"
+                        ? ChatService.ZhihuModels
+                        : (string.IsNullOrWhiteSpace(p.Model)
+                            ? Array.Empty<string>()
+                            : new[] { p.Model });
+                }
+
+                foreach (var m in models)
+                {
+                    if (string.IsNullOrWhiteSpace(m)) continue;
+                    if (!seen.Add(p.Name + "\u0000" + m)) continue;
+                    _modelEntries.Add((p.Name, m));
                 }
             }
+
+            // Make sure the current provider's model is present so it shows as selected.
+            if (!string.IsNullOrWhiteSpace(provider.Model)
+                && !seen.Contains(provider.Name + "\u0000" + provider.Model))
+            {
+                _modelEntries.Add((provider.Name, provider.Model));
+            }
+
+            ModelCombo.Items.Clear();
+            foreach (var entry in _modelEntries)
+            {
+                ModelCombo.Items.Add(entry.Model);
+            }
+            ModelCombo.Text = provider.Model;
+
+            int idx = _modelEntries.FindIndex(e => e.Provider == provider.Name && e.Model == provider.Model);
+            ModelCombo.SelectedIndex = idx >= 0 ? idx : -1;
         }
-        else if (!string.IsNullOrEmpty(provider.Model) && ModelCombo.Items.IndexOf(provider.Model) < 0)
+        finally
         {
-            ModelCombo.Items.Add(provider.Model);
+            _updatingModel = false;
         }
-        ModelCombo.Text = provider.Model;
+    }
+
+    /// <summary>
+    /// The model combo lists every provider's models. Picking a model that
+    /// belongs to another provider switches the current provider to it.
+    /// </summary>
+    private void ModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingModel)
+        {
+            return;
+        }
+
+        int idx = ModelCombo.SelectedIndex;
+        if (idx < 0 || idx >= _modelEntries.Count)
+        {
+            return;
+        }
+
+        var entry = _modelEntries[idx];
+        SettingsService.Instance.Update(s =>
+        {
+            var p = s.Providers.FirstOrDefault(x => x.Name == entry.Provider);
+            if (p != null)
+            {
+                p.Model = entry.Model;
+            }
+            s.CurrentProvider = entry.Provider;
+        }, out _);
+
+        _updatingProvider = true;
+        try
+        {
+            int pi = ProviderCombo.Items.IndexOf(entry.Provider);
+            if (pi >= 0)
+            {
+                ProviderCombo.SelectedIndex = pi;
+            }
+            else
+            {
+                ReloadProviders();
+            }
+        }
+        finally
+        {
+            _updatingProvider = false;
+        }
     }
 
     /// <summary>Fills the search-source combo from the settings default.</summary>
@@ -592,7 +688,7 @@ public partial class ChatWindow : Window
         {
             "始终" => true,
             "关闭" => false,
-            _ => ShouldSearchAuto(text)
+            _ => await ShouldSearchAutoAsync(text)
         };
 
         if (doSearch)
@@ -730,6 +826,53 @@ public partial class ChatWindow : Window
             return true;
         }
         return Regex.IsMatch(text, @"最新|新闻|今天|今日|今年|最近|近期|实时|当前|目前|公告|发布|上市|价格|版本|更新|新增|202[4-9]", RegexOptions.IgnoreCase);
+    }
+
+    /// <summary>
+    /// Decides whether to search in "自动" mode. When enabled, it asks the
+    /// current model; on any failure it falls back to the keyword heuristic.
+    /// </summary>
+    private async Task<bool> ShouldSearchAutoAsync(string text)
+    {
+        var settings = SettingsService.Instance.Current;
+        if (settings.AutoSearchDecision != "Model")
+        {
+            return ShouldSearchAuto(text);
+        }
+
+        var provider = SettingsService.Instance.CurrentProvider();
+        bool isZhihu = provider.Kind == "Zhihu";
+        if (isZhihu ? string.IsNullOrEmpty(settings.ZhihuAccessSecret) : string.IsNullOrEmpty(provider.ApiKey))
+        {
+            return ShouldSearchAuto(text);
+        }
+
+        var model = ModelCombo.Text?.Trim();
+        if (string.IsNullOrEmpty(model))
+        {
+            model = provider.Model;
+        }
+        if (string.IsNullOrEmpty(model))
+        {
+            return ShouldSearchAuto(text);
+        }
+
+        try
+        {
+            return await _chat.DecideSearchAsync(
+                provider.BaseUrl,
+                provider.ApiKey,
+                model,
+                isZhihu,
+                settings.ZhihuAccessSecret,
+                text,
+                _cts?.Token ?? CancellationToken.None);
+        }
+        catch
+        {
+            // If the judge call fails, fall back to the keyword heuristic.
+            return ShouldSearchAuto(text);
+        }
     }
 
     /// <summary>
