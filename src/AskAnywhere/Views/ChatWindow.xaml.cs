@@ -1085,7 +1085,7 @@ public partial class ChatWindow : Window
     private static string BuildSearchContext(List<SearchResult> results)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("以下是针对用户问题的联网搜索结果，请优先参考这些资料回答，回答末尾可附上相关链接：");
+        sb.AppendLine("以下是针对用户问题的联网搜索结果，请在回答中优先参考这些资料，引用时用 [序号] 标注。相关链接已列在回答下方，不要在末尾重复粘贴链接：");
         sb.AppendLine();
         for (int i = 0; i < results.Count; i++)
         {
